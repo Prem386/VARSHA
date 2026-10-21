@@ -8,7 +8,7 @@ const App: FC = () => {
       <header className="varsha-header">
         <div className="header-meta">
           <span className="badge badge-accent">MY Bharat Hackathon</span>
-          <span className="badge badge-subtle">Phase 3 &bull; Route Comparison (OSRM)</span>
+          <span className="badge badge-subtle">Phase 4 &bull; Route Risk Comparison</span>
           <span className="badge badge-pilot">Pilot: Navi Mumbai</span>
         </div>
 
@@ -56,7 +56,7 @@ const App: FC = () => {
                 Pilot Area: Navi Mumbai (19.0330&deg; N, 73.0297&deg; E) &bull; Select origin &amp; destination on map
               </p>
             </div>
-            <span className="phase-indicator">OSRM Routing &amp; Hazards Active</span>
+            <span className="phase-indicator">OSRM Routing &amp; Risk Scoring Active</span>
           </div>
 
           <MapView />

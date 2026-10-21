@@ -1,5 +1,12 @@
 import type { FC } from 'react'
-import type { RoadRoute, RouteEndpointType, RouteStatus, SelectedLocation } from '../../types'
+import type {
+  RoadRoute,
+  RouteEndpointType,
+  RouteRiskAssessment,
+  RouteRiskCategory,
+  RouteStatus,
+  SelectedLocation,
+} from '../../types'
 import { formatDistance, formatDuration } from '../routing/osrmService'
 
 interface RouteSelectorProps {
@@ -17,6 +24,141 @@ interface RouteSelectorProps {
   routeError: string | null
   onPlanRoute: () => void
   onClearRoute: () => void
+  riskAssessments?: Record<string, RouteRiskAssessment>
+}
+
+const getRiskCategoryClass = (category?: RouteRiskCategory): string => {
+  switch (category) {
+    case 'Low':
+      return 'risk-cat-low'
+    case 'Moderate':
+      return 'risk-cat-moderate'
+    case 'High':
+      return 'risk-cat-high'
+    case 'Very High':
+      return 'risk-cat-very-high'
+    case 'No nearby simulated hazards':
+    default:
+      return 'risk-cat-none'
+  }
+}
+
+const getRiskCategoryIcon = (category?: RouteRiskCategory): string => {
+  switch (category) {
+    case 'Low':
+      return '🛡️'
+    case 'Moderate':
+      return '⚠️'
+    case 'High':
+      return '⚠️'
+    case 'Very High':
+      return '🛑'
+    case 'No nearby simulated hazards':
+    default:
+      return 'ℹ️'
+  }
+}
+
+interface RouteRiskDisplayProps {
+  assessment?: RouteRiskAssessment
+}
+
+const RouteRiskDisplay: FC<RouteRiskDisplayProps> = ({ assessment }) => {
+  if (!assessment) {
+    return null
+  }
+
+  if (assessment.status === 'error' || !assessment.result) {
+    return (
+      <div className="route-risk-block risk-block-error" role="status">
+        <div className="risk-header-row">
+          <span className="risk-category-tag risk-cat-error">
+            <span className="risk-tag-icon" aria-hidden="true">⚠️</span>
+            Risk Assessment Unavailable
+          </span>
+        </div>
+        <p className="risk-error-text">
+          {assessment.error || 'Unable to compute prototype risk assessment for this route.'}
+        </p>
+      </div>
+    )
+  }
+
+  const { result } = assessment
+  const categoryClass = getRiskCategoryClass(result.riskCategory)
+  const categoryIcon = getRiskCategoryIcon(result.riskCategory)
+
+  return (
+    <div
+      className={`route-risk-block ${categoryClass}`}
+      role="region"
+      aria-label={`Risk Assessment: ${result.riskCategory}, score ${result.score} out of 100`}
+    >
+      <div className="risk-header-row">
+        <div className="risk-score-display">
+          <span className="risk-score-label">Prototype Risk Score</span>
+          <div className="risk-score-value">
+            <strong className="score-num">{result.score}</strong>
+            <span className="score-max">/100</span>
+          </div>
+        </div>
+
+        <div className="risk-badge-container">
+          <span className={`risk-category-tag ${categoryClass}`}>
+            <span className="risk-tag-icon" aria-hidden="true">{categoryIcon}</span>
+            <span className="risk-tag-label">{result.riskCategory}</span>
+          </span>
+          <span className="risk-simulated-caption">Simulated Prototype</span>
+        </div>
+      </div>
+
+      <div className="risk-explanation-box">
+        {result.includedHazardCount === 0 ? (
+          <p className="risk-explanation-text">
+            No simulated hazards detected within {result.thresholdMeters}m proximity threshold.
+          </p>
+        ) : (
+          <p className="risk-explanation-text">
+            {result.includedHazardCount} simulated hazard{result.includedHazardCount > 1 ? 's' : ''} detected within {result.thresholdMeters}m threshold contributing to score.
+          </p>
+        )}
+      </div>
+
+      {result.contributions.length > 0 && (
+        <details className="risk-contributions-details">
+          <summary
+            className="risk-details-summary"
+            onClick={(e) => {
+              // Prevent toggling details from triggering parent route selection clicks
+              e.stopPropagation()
+            }}
+          >
+            <span className="summary-title">
+              Contributing Hazards ({result.contributions.length})
+            </span>
+            <span className="summary-chevron" aria-hidden="true">▾</span>
+          </summary>
+          <div className="contributions-list" onClick={(e) => e.stopPropagation()}>
+            {result.contributions.map((c) => (
+              <div key={c.hazardId} className="contribution-item">
+                <div className="contribution-top">
+                  <span className="contribution-name">{c.hazardName}</span>
+                  <span className={`contribution-severity-badge sev-${c.severity}`}>
+                    {c.severity.toUpperCase()}
+                  </span>
+                </div>
+                <div className="contribution-metrics">
+                  <span className="contrib-dist">{c.distanceMeters}m from route</span>
+                  <span className="contrib-score">+{c.scoreContribution} pts</span>
+                </div>
+                <p className="contribution-desc">{c.explanation}</p>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+    </div>
+  )
 }
 
 export const RouteSelector: FC<RouteSelectorProps> = ({
@@ -34,6 +176,7 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
   routeError,
   onPlanRoute,
   onClearRoute,
+  riskAssessments,
 }) => {
   const selectedRoute =
     routes.find((r) => r.id === selectedRouteId) ?? routes[0] ?? null
@@ -49,7 +192,7 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
     <div className="route-selector-container" role="region" aria-label="Route Origin and Destination Controls">
       <div className="route-selector-header">
         <div className="selector-title-group">
-          <span className="selector-badge">Phase 3 &bull; OSRM Road Routing</span>
+          <span className="selector-badge">Phase 4 &bull; Route Risk Comparison</span>
           <h4 className="selector-heading">Select Origin &amp; Destination</h4>
         </div>
         <p className="selector-instruction">
@@ -313,6 +456,9 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
                         </div>
                       </div>
 
+                      {/* Prototype Risk Assessment */}
+                      <RouteRiskDisplay assessment={riskAssessments?.[r.id]} />
+
                       <button
                         type="button"
                         className={`btn-select-route-action ${isSelected ? 'btn-select-active' : ''}`}
@@ -330,27 +476,39 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
               </div>
             </div>
           ) : (
-            /* Single-route fallback display */
-            <div className="route-metrics-grid">
-              <div className="metric-box">
-                <span className="metric-label">Road Distance</span>
-                <span className="metric-value">{formatDistance(selectedRoute.distanceMeters)}</span>
+            /* Single-route display with risk evaluation */
+            <div className="single-route-container">
+              <div className="route-metrics-grid">
+                <div className="metric-box">
+                  <span className="metric-label">Road Distance</span>
+                  <span className="metric-value">{formatDistance(selectedRoute.distanceMeters)}</span>
+                </div>
+                <div className="metric-box">
+                  <span className="metric-label">Est. Duration</span>
+                  <span className="metric-value">{formatDuration(selectedRoute.durationSeconds)}</span>
+                </div>
+                <div className="metric-box">
+                  <span className="metric-label">Waypoints</span>
+                  <span className="metric-value metric-value-sm">{selectedRoute.coordinates.length} points</span>
+                </div>
               </div>
-              <div className="metric-box">
-                <span className="metric-label">Est. Duration</span>
-                <span className="metric-value">{formatDuration(selectedRoute.durationSeconds)}</span>
-              </div>
-              <div className="metric-box">
-                <span className="metric-label">Waypoints</span>
-                <span className="metric-value metric-value-sm">{selectedRoute.coordinates.length} points</span>
-              </div>
+
+              {/* Single Route Risk Assessment */}
+              <RouteRiskDisplay assessment={riskAssessments?.[selectedRoute.id]} />
             </div>
           )}
 
-          <p className="route-disclaimer">
+          <div className="route-disclaimer" role="note">
             <span className="disclaimer-icon" aria-hidden="true">ℹ️</span>
-            <span>{selectedRoute.engineEstimateNotice}</span>
-          </p>
+            <div className="disclaimer-text">
+              <p className="disclaimer-primary">
+                Prototype risk estimate based on simulated hazards. This is not a validated flood prediction or guarantee of route safety. Route duration does not include live traffic or monsoon-related delays.
+              </p>
+              <p className="disclaimer-engine">
+                {selectedRoute.engineEstimateNotice}
+              </p>
+            </div>
+          </div>
         </div>
       )}
 

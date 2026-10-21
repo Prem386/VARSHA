@@ -730,17 +730,33 @@
 .route-disclaimer {
   display: flex;
   align-items: flex-start;
-  gap: 0.45rem;
+  gap: 0.5rem;
   font-size: 0.74rem;
   color: var(--text-muted);
   line-height: 1.4;
   margin: 0;
-  padding-top: 0.4rem;
-  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.15);
 }
 
-.disclaimer-icon {
-  flex-shrink: 0;
+.disclaimer-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.disclaimer-primary {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.disclaimer-engine {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  line-height: 1.3;
 }
 
 /* Route Alternatives Comparison Section */
@@ -913,6 +929,330 @@
   border-color: #2563eb;
   color: #93c5fd;
   font-weight: 700;
+}
+
+/* Single Route Container */
+.single-route-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Route Risk Assessment Block */
+.route-risk-block {
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.65);
+  transition: all 0.2s ease;
+}
+
+/* Category Restrained Color Themes */
+.risk-cat-none {
+  border-color: rgba(148, 163, 184, 0.3);
+  background: rgba(30, 41, 59, 0.45);
+}
+
+.risk-cat-none .risk-category-tag {
+  color: #cbd5e1;
+  background-color: rgba(148, 163, 184, 0.15);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.risk-cat-low {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.risk-cat-low .risk-category-tag {
+  color: #34d399;
+  background-color: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.risk-cat-low .score-num {
+  color: #34d399;
+}
+
+.risk-cat-moderate {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.risk-cat-moderate .risk-category-tag {
+  color: #fbbf24;
+  background-color: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.risk-cat-moderate .score-num {
+  color: #fbbf24;
+}
+
+.risk-cat-high {
+  border-color: rgba(249, 115, 22, 0.4);
+  background: rgba(249, 115, 22, 0.08);
+}
+
+.risk-cat-high .risk-category-tag {
+  color: #fb923c;
+  background-color: rgba(249, 115, 22, 0.16);
+  border: 1px solid rgba(249, 115, 22, 0.45);
+}
+
+.risk-cat-high .score-num {
+  color: #fb923c;
+}
+
+.risk-cat-very-high {
+  border-color: rgba(239, 68, 68, 0.45);
+  background: rgba(239, 68, 68, 0.09);
+}
+
+.risk-cat-very-high .risk-category-tag {
+  color: #f87171;
+  background-color: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+}
+
+.risk-cat-very-high .score-num {
+  color: #f87171;
+}
+
+.risk-block-error {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.risk-cat-error {
+  color: #fca5a5;
+  background-color: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.risk-error-text {
+  font-size: 0.76rem;
+  color: #fca5a5;
+  margin: 0;
+  line-height: 1.35;
+}
+
+/* Risk Header Layout */
+.risk-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.risk-score-display {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.risk-score-label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.risk-score-value {
+  display: flex;
+  align-items: baseline;
+  gap: 0.15rem;
+}
+
+.score-num {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #ffffff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.score-max {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.risk-badge-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+}
+
+.risk-category-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  line-height: 1.2;
+}
+
+.risk-tag-icon {
+  font-size: 0.72rem;
+}
+
+.risk-simulated-caption {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Explanation Box */
+.risk-explanation-box {
+  background: rgba(15, 23, 42, 0.5);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.55rem;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.risk-explanation-text {
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+  margin: 0;
+}
+
+/* Collapsible Details */
+.risk-contributions-details {
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.risk-details-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #38bdf8;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease;
+  list-style: none;
+}
+
+.risk-details-summary::-webkit-details-marker {
+  display: none;
+}
+
+.risk-details-summary:hover {
+  background-color: rgba(56, 189, 248, 0.08);
+}
+
+.risk-details-summary:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: -2px;
+}
+
+.summary-chevron {
+  font-size: 0.75rem;
+  transition: transform 0.2s ease;
+}
+
+.risk-contributions-details[open] .summary-chevron {
+  transform: rotate(180deg);
+}
+
+.contributions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.45rem 0.55rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.contribution-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  background: rgba(30, 41, 59, 0.5);
+  padding: 0.35rem 0.45rem;
+  border-radius: 3px;
+  border-left: 2.5px solid rgba(148, 163, 184, 0.3);
+}
+
+.contribution-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.contribution-name {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #f1f5f9;
+  line-height: 1.25;
+}
+
+.contribution-severity-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.sev-high {
+  background-color: rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.sev-medium {
+  background-color: rgba(245, 158, 11, 0.25);
+  color: #fcd34d;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.sev-low {
+  background-color: rgba(6, 182, 212, 0.25);
+  color: #67e8f9;
+  border: 1px solid rgba(6, 182, 212, 0.4);
+}
+
+.contribution-metrics {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.66rem;
+  color: var(--text-muted);
+}
+
+.contrib-dist {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.contrib-score {
+  font-weight: 700;
+  color: #fb923c;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.contribution-desc {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+  margin: 0;
 }
 
 /* Route Planning Footer Action */
@@ -1219,5 +1559,46 @@
 
   .legend-items {
     gap: 0.75rem;
+  }
+
+  /* Mobile risk card adjustments for 375px viewports */
+  .route-risk-block {
+    padding: 0.55rem;
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  .risk-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+
+  .risk-badge-container {
+    align-items: flex-start;
+  }
+
+  .route-option-card {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .contribution-top {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  .contribution-name {
+    word-break: break-word;
+  }
+
+  .contribution-desc {
+    word-break: break-word;
+  }
+
+  .disclaimer-primary,
+  .disclaimer-engine {
+    word-break: break-word;
   }
 }

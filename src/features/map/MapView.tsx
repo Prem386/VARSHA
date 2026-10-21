@@ -1,11 +1,13 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { FC } from 'react'
 import { MapContainer, Polyline, TileLayer } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import HazardMarkers from './HazardMarkers'
 import RouteEndpointMarkers from './RouteEndpointMarkers'
 import RouteSelector from './RouteSelector'
+import { SIMULATED_HAZARDS } from './hazardData.ts'
 import { fetchRoadRoutes } from '../routing/osrmService'
+import { assessRoutesRisk } from '../routing/routeRiskAssessment.ts'
 import type { RoadRoute, RouteEndpointType, RouteStatus, SelectedLocation } from '../../types'
 import './MapView.css'
 
@@ -29,6 +31,11 @@ export const MapView: FC = () => {
 
   const selectedRoute =
     routes.find((r) => r.id === selectedRouteId) ?? routes[0] ?? null
+
+  // Memoized prototype risk assessment for each route; re-evaluates only when routes change
+  const riskAssessments = useMemo(() => {
+    return assessRoutesRisk(routes, SIMULATED_HAZARDS)
+  }, [routes])
 
   // Check if both points exist and have identical coordinates
   const isIdentical = Boolean(
@@ -151,6 +158,7 @@ export const MapView: FC = () => {
         routeError={routeError}
         onPlanRoute={handlePlanRoute}
         onClearRoute={clearExistingRoute}
+        riskAssessments={riskAssessments}
       />
 
       {/* Interactive Map with Route Polylines, Hazards and Endpoints */}

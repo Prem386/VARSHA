@@ -100,3 +100,10 @@ export interface RouteRiskScoreResult {
   contributions: HazardRiskContribution[]
   summaryExplanation: string
 }
+
+export interface RouteRiskAssessment {
+  routeId: string
+  status: 'success' | 'error'
+  result?: RouteRiskScoreResult
+  error?: string
+}
