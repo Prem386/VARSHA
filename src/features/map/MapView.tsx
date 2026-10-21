@@ -1,11 +1,12 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { FC } from 'react'
-import { MapContainer, TileLayer } from 'react-leaflet'
+import { MapContainer, Polyline, TileLayer } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import HazardMarkers from './HazardMarkers'
 import RouteEndpointMarkers from './RouteEndpointMarkers'
 import RouteSelector from './RouteSelector'
-import type { RouteEndpointType, SelectedLocation } from '../../types'
+import { fetchRoadRoute } from '../routing/osrmService'
+import type { RoadRoute, RouteEndpointType, RouteStatus, SelectedLocation } from '../../types'
 import './MapView.css'
 
 // ponytail: default to central Navi Mumbai coordinates; props deferred until multiple pilot areas exist
@@ -17,6 +18,14 @@ export const MapView: FC = () => {
   const [destination, setDestination] = useState<SelectedLocation | null>(null)
   const [activeTarget, setActiveTarget] = useState<RouteEndpointType>('origin')
 
+  // Routing state
+  const [route, setRoute] = useState<RoadRoute | null>(null)
+  const [routeStatus, setRouteStatus] = useState<RouteStatus>('idle')
+  const [routeError, setRouteError] = useState<string | null>(null)
+
+  // In-flight request controller to prevent stale overwrites
+  const activeRequestRef = useRef<AbortController | null>(null)
+
   // Check if both points exist and have identical coordinates
   const isIdentical = Boolean(
     origin &&
@@ -25,7 +34,20 @@ export const MapView: FC = () => {
     Math.abs(origin.coordinates[1] - destination.coordinates[1]) < 0.0001
   )
 
+  const clearExistingRoute = () => {
+    if (activeRequestRef.current) {
+      activeRequestRef.current.abort()
+      activeRequestRef.current = null
+    }
+    setRoute(null)
+    setRouteStatus('idle')
+    setRouteError(null)
+  }
+
   const handleMapClick = (coords: [number, number]) => {
+    // Invalidate stale route when endpoints change
+    clearExistingRoute()
+
     const formattedLat = Number(coords[0].toFixed(6))
     const formattedLng = Number(coords[1].toFixed(6))
 
@@ -50,6 +72,7 @@ export const MapView: FC = () => {
   }
 
   const handleSwap = () => {
+    clearExistingRoute()
     const prevOrigin = origin
     const prevDest = destination
     setOrigin(prevDest ? { ...prevDest, label: 'Origin (Point A)' } : null)
@@ -57,6 +80,7 @@ export const MapView: FC = () => {
   }
 
   const handleClear = (target: RouteEndpointType) => {
+    clearExistingRoute()
     if (target === 'origin') {
       setOrigin(null)
       setActiveTarget('origin')
@@ -66,9 +90,45 @@ export const MapView: FC = () => {
     }
   }
 
+  const handlePlanRoute = async () => {
+    if (!origin || !destination || isIdentical) {
+      return
+    }
+
+    // Cancel in-flight request if user triggered again
+    if (activeRequestRef.current) {
+      activeRequestRef.current.abort()
+    }
+
+    const controller = new AbortController()
+    activeRequestRef.current = controller
+
+    setRouteStatus('loading')
+    setRouteError(null)
+
+    try {
+      const result = await fetchRoadRoute(origin.coordinates, destination.coordinates, controller.signal)
+      setRoute(result)
+      setRouteStatus('success')
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        // Request cancelled by user action, ignore
+        return
+      }
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred while calculating route.'
+      setRoute(null)
+      setRouteStatus('error')
+      setRouteError(message)
+    } finally {
+      if (activeRequestRef.current === controller) {
+        activeRequestRef.current = null
+      }
+    }
+  }
+
   return (
-    <div className="map-view-wrapper" role="region" aria-label="Interactive map of Navi Mumbai with route endpoints and simulated hazard markers">
-      {/* Route Endpoint Selector Controls */}
+    <div className="map-view-wrapper" role="region" aria-label="Interactive map of Navi Mumbai with road route and simulated hazard markers">
+      {/* Route Endpoint & OSRM Routing Controls */}
       <RouteSelector
         origin={origin}
         destination={destination}
@@ -77,9 +137,14 @@ export const MapView: FC = () => {
         onSwap={handleSwap}
         onClear={handleClear}
         isIdentical={isIdentical}
+        route={route}
+        routeStatus={routeStatus}
+        routeError={routeError}
+        onPlanRoute={handlePlanRoute}
+        onClearRoute={clearExistingRoute}
       />
 
-      {/* Interactive Map with Hazards and Endpoints */}
+      {/* Interactive Map with Route Polyline, Hazards and Endpoints */}
       <MapContainer
         center={NAVI_MUMBAI_CENTER}
         zoom={DEFAULT_ZOOM}
@@ -90,6 +155,21 @@ export const MapView: FC = () => {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors'
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+
+        {/* Real OSRM Road Route Polyline */}
+        {route && (
+          <Polyline
+            positions={route.coordinates}
+            pathOptions={{
+              color: '#2563eb',
+              weight: 6,
+              opacity: 0.9,
+              lineCap: 'round',
+              lineJoin: 'round',
+            }}
+          />
+        )}
+
         <HazardMarkers />
         <RouteEndpointMarkers
           origin={origin}
@@ -101,7 +181,7 @@ export const MapView: FC = () => {
       {/* Comprehensive Legend */}
       <div className="map-legend-bar" aria-label="Map symbols legend">
         <div className="legend-group">
-          <span className="legend-title">Route Endpoints:</span>
+          <span className="legend-title">Route Elements:</span>
           <div className="legend-items">
             <span className="legend-item">
               <span className="legend-pin-badge legend-pin-origin" aria-hidden="true">A</span>
@@ -110,6 +190,10 @@ export const MapView: FC = () => {
             <span className="legend-item">
               <span className="legend-pin-badge legend-pin-dest" aria-hidden="true">B</span>
               <span>Destination (End)</span>
+            </span>
+            <span className="legend-item">
+              <span className="legend-route-line" aria-hidden="true"></span>
+              <span>Road Route (OSRM)</span>
             </span>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import type { FC } from 'react'
-import type { RouteEndpointType, SelectedLocation } from '../../types'
+import type { RoadRoute, RouteEndpointType, RouteStatus, SelectedLocation } from '../../types'
+import { formatDistance, formatDuration } from '../routing/osrmService'
 
 interface RouteSelectorProps {
   origin: SelectedLocation | null
@@ -9,6 +10,11 @@ interface RouteSelectorProps {
   onSwap: () => void
   onClear: (target: RouteEndpointType) => void
   isIdentical: boolean
+  route: RoadRoute | null
+  routeStatus: RouteStatus
+  routeError: string | null
+  onPlanRoute: () => void
+  onClearRoute: () => void
 }
 
 export const RouteSelector: FC<RouteSelectorProps> = ({
@@ -19,6 +25,11 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
   onSwap,
   onClear,
   isIdentical,
+  route,
+  routeStatus,
+  routeError,
+  onPlanRoute,
+  onClearRoute,
 }) => {
   const formatCoords = (coords: [number, number]): string => {
     return `${coords[0].toFixed(4)}, ${coords[1].toFixed(4)}`
@@ -31,7 +42,7 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
     <div className="route-selector-container" role="region" aria-label="Route Origin and Destination Controls">
       <div className="route-selector-header">
         <div className="selector-title-group">
-          <span className="selector-badge">Phase 3 &bull; Route Endpoints</span>
+          <span className="selector-badge">Phase 3 &bull; OSRM Road Routing</span>
           <h4 className="selector-heading">Select Origin &amp; Destination</h4>
         </div>
         <p className="selector-instruction">
@@ -182,31 +193,124 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
         </div>
       )}
 
-      {/* Future Route Planning Action Area */}
+      {/* Loading state indicator */}
+      {routeStatus === 'loading' && (
+        <div className="route-status-panel panel-loading" role="status">
+          <span className="route-spinner" aria-hidden="true"></span>
+          <span>Querying public OSRM routing service for driving road geometry...</span>
+        </div>
+      )}
+
+      {/* Error state alert with Retry */}
+      {routeStatus === 'error' && routeError && (
+        <div className="route-status-panel panel-error" role="alert">
+          <div className="status-error-content">
+            <span className="status-error-icon" aria-hidden="true">⚠️</span>
+            <div className="status-error-text">
+              <strong>Route retrieval failed:</strong>
+              <p className="error-message">{routeError}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn-retry-route"
+            onClick={onPlanRoute}
+            disabled={!canPlanRoute}
+          >
+            Retry Request
+          </button>
+        </div>
+      )}
+
+      {/* Success state: Route Summary display */}
+      {routeStatus === 'success' && route && (
+        <div className="route-summary-panel" role="region" aria-label="Retrieved road route summary">
+          <div className="route-summary-header">
+            <div className="summary-title-group">
+              <span className="summary-badge">Route Retrieved</span>
+              <h5 className="summary-heading">OSRM Road Route</h5>
+            </div>
+            <button
+              type="button"
+              className="btn-clear-route"
+              onClick={onClearRoute}
+              title="Clear active route from map"
+            >
+              Clear Route Line
+            </button>
+          </div>
+
+          <div className="route-metrics-grid">
+            <div className="metric-box">
+              <span className="metric-label">Road Distance</span>
+              <span className="metric-value">{formatDistance(route.distanceMeters)}</span>
+            </div>
+            <div className="metric-box">
+              <span className="metric-label">Est. Duration</span>
+              <span className="metric-value">{formatDuration(route.durationSeconds)}</span>
+            </div>
+            <div className="metric-box">
+              <span className="metric-label">Waypoints</span>
+              <span className="metric-value metric-value-sm">{route.coordinates.length} points</span>
+            </div>
+          </div>
+
+          <p className="route-disclaimer">
+            <span className="disclaimer-icon" aria-hidden="true">ℹ️</span>
+            <span>{route.engineEstimateNotice}</span>
+          </p>
+        </div>
+      )}
+
+      {/* Route Planning Action Footer */}
       <div className="route-planning-footer">
         <button
           type="button"
           className="btn-plan-route"
-          disabled={!canPlanRoute}
-          aria-disabled={!canPlanRoute}
+          onClick={onPlanRoute}
+          disabled={!canPlanRoute || routeStatus === 'loading'}
+          aria-busy={routeStatus === 'loading'}
+          aria-disabled={!canPlanRoute || routeStatus === 'loading'}
           title={
             !canPlanRoute
               ? 'Select both distinct origin and destination first'
-              : 'Route calculation will be enabled in Phase 3 Feature 2'
+              : routeStatus === 'loading'
+              ? 'Requesting route from OSRM...'
+              : 'Calculate driving road route via OSRM'
           }
         >
-          <span>Plan Safer Route</span>
-          <span className="btn-badge-upcoming">Phase 3 Feature</span>
+          {routeStatus === 'loading' ? (
+            <>
+              <span className="btn-spinner" aria-hidden="true"></span>
+              <span>Fetching Route...</span>
+            </>
+          ) : routeStatus === 'success' ? (
+            <>
+              <span>Recalculate Route</span>
+              <span className="btn-badge-ready">Active</span>
+            </>
+          ) : (
+            <>
+              <span>Plan Driving Route</span>
+              <span className="btn-badge-ready">OSRM</span>
+            </>
+          )}
         </button>
 
         <p className="route-future-notice">
-          {canPlanRoute ? (
+          {routeStatus === 'loading' ? (
+            <span className="text-waiting">Requesting road route geometry from OSRM...</span>
+          ) : routeStatus === 'success' ? (
             <span className="text-ready">
-              ✓ Endpoints configured. Routing engine, flood-risk evaluation, and alternative routes will be calculated in the next feature.
+              ✓ Real road route displayed. Flood-risk evaluation and alternative routes follow in subsequent features.
+            </span>
+          ) : canPlanRoute ? (
+            <span className="text-ready">
+              ✓ Endpoints ready. Click &quot;Plan Driving Route&quot; to calculate path.
             </span>
           ) : (
             <span className="text-waiting">
-              Select an origin and destination on the map to prepare route planning.
+              Select an origin and destination on the map to calculate a route.
             </span>
           )}
         </p>

@@ -35,3 +35,13 @@ export interface SelectedLocation {
   label: string
   coordinates: [number, number] // [lat, lng]
 }
+
+export interface RoadRoute {
+  id: string
+  coordinates: [number, number][] // [lat, lng] Leaflet coordinate pairs
+  distanceMeters: number
+  durationSeconds: number
+  engineEstimateNotice: string
+}
+
+export type RouteStatus = 'idle' | 'loading' | 'success' | 'error'
