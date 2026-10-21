@@ -67,3 +67,36 @@ export interface RouteHazardProximitySummary {
   nearbyHazards: HazardProximityResult[]
   allHazards: HazardProximityResult[]
 }
+
+export type RouteRiskCategory =
+  | 'No nearby simulated hazards'
+  | 'Low'
+  | 'Moderate'
+  | 'High'
+  | 'Very High'
+
+export interface HazardRiskContribution {
+  hazardId: string
+  hazardName: string
+  severity: HazardSeverity
+  distanceMeters: number
+  baseWeight: number
+  proximityMultiplier: number
+  scoreContribution: number
+  explanation: string
+}
+
+export interface RouteRiskScoringOptions {
+  thresholdMeters?: number
+  severityWeights?: Partial<Record<HazardSeverity, number>>
+}
+
+export interface RouteRiskScoreResult {
+  score: number
+  riskCategory: RouteRiskCategory
+  evaluatedHazardCount: number
+  includedHazardCount: number
+  thresholdMeters: number
+  contributions: HazardRiskContribution[]
+  summaryExplanation: string
+}
