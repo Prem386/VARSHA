@@ -1,4 +1,5 @@
 import type { FC } from 'react'
+import MapView from './features/map/MapView'
 import './App.css'
 
 const App: FC = () => {
@@ -7,7 +8,7 @@ const App: FC = () => {
       <header className="varsha-header">
         <div className="header-meta">
           <span className="badge badge-accent">MY Bharat Hackathon</span>
-          <span className="badge badge-subtle">Phase 1 &bull; Frontend Foundation</span>
+          <span className="badge badge-subtle">Phase 2 &bull; Interactive Map</span>
           <span className="badge badge-pilot">Pilot: Navi Mumbai</span>
         </div>
 
@@ -44,7 +45,7 @@ const App: FC = () => {
           </div>
         </section>
 
-        {/* Map Placeholder */}
+        {/* Map Section */}
         <section className="map-placeholder-section" aria-labelledby="map-section-heading">
           <div className="section-header-row">
             <div>
@@ -52,37 +53,17 @@ const App: FC = () => {
                 Interactive Route &amp; Hazard Map
               </h3>
               <p className="section-subtitle">
-                Pilot Area: Navi Mumbai (19.0330&deg; N, 73.0297&deg; E)
+                Pilot Area: Navi Mumbai (19.0330&deg; N, 73.0297&deg; E) &bull; Pan and zoom enabled
               </p>
             </div>
-            <span className="phase-indicator">Phase 2 Target Integration</span>
+            <span className="phase-indicator">Interactive Map Active</span>
           </div>
 
-          <div className="map-canvas-placeholder" role="region" aria-label="Interactive Map Placeholder">
-            <div className="map-grid-overlay" aria-hidden="true"></div>
+          <MapView />
 
-            <div className="map-placeholder-content">
-              <div className="map-icon" aria-hidden="true">🗺️</div>
-              <h4 className="placeholder-title">Interactive Leaflet Map Canvas</h4>
-              <p className="placeholder-text">
-                React Leaflet + OpenStreetMap integration scheduled for Phase 2.
-                This area will render road routing across Navi Mumbai with simulated hazard overlays
-                (waterlogged junctions, flooded underpasses, and arterial bottlenecks).
-              </p>
-
-              <div className="map-legend-preview">
-                <span className="legend-chip legend-safe">
-                  <span className="legend-marker marker-green"></span> Safer Route Candidate
-                </span>
-                <span className="legend-chip legend-alt">
-                  <span className="legend-marker marker-blue"></span> Fastest Route (Elevated Risk)
-                </span>
-                <span className="legend-chip legend-hazard">
-                  <span className="legend-marker marker-amber"></span> Simulated Hazard
-                </span>
-              </div>
-            </div>
-          </div>
+          <p className="map-status-note">
+            Interactive base map active. Simulated hazard overlays and route comparison features will be introduced in subsequent phases.
+          </p>
         </section>
 
         {/* Features / Information Grid */}

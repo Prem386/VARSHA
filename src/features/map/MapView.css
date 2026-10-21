@@ -1,0 +1,33 @@
+.map-view-wrapper {
+  width: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  background-color: #0b1320;
+}
+
+.varsha-leaflet-container {
+  height: 420px;
+  width: 100%;
+  z-index: 1;
+}
+
+/* Ensure Leaflet attribution links and container remain clear and accessible */
+.leaflet-container .leaflet-control-attribution {
+  background-color: rgba(15, 23, 42, 0.85);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  backdrop-filter: blur(4px);
+}
+
+.leaflet-container .leaflet-control-attribution a {
+  color: var(--accent-blue);
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .varsha-leaflet-container {
+    height: 320px;
+  }
+}
