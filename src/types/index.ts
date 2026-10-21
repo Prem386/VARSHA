@@ -38,6 +38,7 @@ export interface SelectedLocation {
 
 export interface RoadRoute {
   id: string
+  label?: string
   coordinates: [number, number][] // [lat, lng] Leaflet coordinate pairs
   distanceMeters: number
   durationSeconds: number

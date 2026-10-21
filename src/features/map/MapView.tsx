@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css'
 import HazardMarkers from './HazardMarkers'
 import RouteEndpointMarkers from './RouteEndpointMarkers'
 import RouteSelector from './RouteSelector'
-import { fetchRoadRoute } from '../routing/osrmService'
+import { fetchRoadRoutes } from '../routing/osrmService'
 import type { RoadRoute, RouteEndpointType, RouteStatus, SelectedLocation } from '../../types'
 import './MapView.css'
 
@@ -19,12 +19,16 @@ export const MapView: FC = () => {
   const [activeTarget, setActiveTarget] = useState<RouteEndpointType>('origin')
 
   // Routing state
-  const [route, setRoute] = useState<RoadRoute | null>(null)
+  const [routes, setRoutes] = useState<RoadRoute[]>([])
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null)
   const [routeStatus, setRouteStatus] = useState<RouteStatus>('idle')
   const [routeError, setRouteError] = useState<string | null>(null)
 
   // In-flight request controller to prevent stale overwrites
   const activeRequestRef = useRef<AbortController | null>(null)
+
+  const selectedRoute =
+    routes.find((r) => r.id === selectedRouteId) ?? routes[0] ?? null
 
   // Check if both points exist and have identical coordinates
   const isIdentical = Boolean(
@@ -39,7 +43,8 @@ export const MapView: FC = () => {
       activeRequestRef.current.abort()
       activeRequestRef.current = null
     }
-    setRoute(null)
+    setRoutes([])
+    setSelectedRouteId(null)
     setRouteStatus('idle')
     setRouteError(null)
   }
@@ -107,8 +112,9 @@ export const MapView: FC = () => {
     setRouteError(null)
 
     try {
-      const result = await fetchRoadRoute(origin.coordinates, destination.coordinates, controller.signal)
-      setRoute(result)
+      const results = await fetchRoadRoutes(origin.coordinates, destination.coordinates, controller.signal)
+      setRoutes(results)
+      setSelectedRouteId(results[0]?.id ?? null)
       setRouteStatus('success')
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === 'AbortError') {
@@ -116,7 +122,8 @@ export const MapView: FC = () => {
         return
       }
       const message = err instanceof Error ? err.message : 'An unexpected error occurred while calculating route.'
-      setRoute(null)
+      setRoutes([])
+      setSelectedRouteId(null)
       setRouteStatus('error')
       setRouteError(message)
     } finally {
@@ -137,14 +144,16 @@ export const MapView: FC = () => {
         onSwap={handleSwap}
         onClear={handleClear}
         isIdentical={isIdentical}
-        route={route}
+        routes={routes}
+        selectedRouteId={selectedRoute?.id ?? null}
+        onSelectRoute={setSelectedRouteId}
         routeStatus={routeStatus}
         routeError={routeError}
         onPlanRoute={handlePlanRoute}
         onClearRoute={clearExistingRoute}
       />
 
-      {/* Interactive Map with Route Polyline, Hazards and Endpoints */}
+      {/* Interactive Map with Route Polylines, Hazards and Endpoints */}
       <MapContainer
         center={NAVI_MUMBAI_CENTER}
         zoom={DEFAULT_ZOOM}
@@ -156,14 +165,38 @@ export const MapView: FC = () => {
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {/* Real OSRM Road Route Polyline */}
-        {route && (
+        {/* Unselected Alternative Routes (rendered first, below active route) */}
+        {routes
+          .filter((r) => r.id !== selectedRoute?.id)
+          .map((altRoute) => (
+            <Polyline
+              key={altRoute.id}
+              positions={altRoute.coordinates}
+              pathOptions={{
+                color: '#64748b',
+                weight: 4,
+                opacity: 0.6,
+                lineCap: 'round',
+                lineJoin: 'round',
+                dashArray: '8, 8',
+              }}
+              eventHandlers={{
+                click: () => {
+                  setSelectedRouteId(altRoute.id)
+                },
+              }}
+            />
+          ))}
+
+        {/* Selected / Active Road Route Polyline */}
+        {selectedRoute && (
           <Polyline
-            positions={route.coordinates}
+            key={selectedRoute.id}
+            positions={selectedRoute.coordinates}
             pathOptions={{
               color: '#2563eb',
               weight: 6,
-              opacity: 0.9,
+              opacity: 0.95,
               lineCap: 'round',
               lineJoin: 'round',
             }}
@@ -193,8 +226,14 @@ export const MapView: FC = () => {
             </span>
             <span className="legend-item">
               <span className="legend-route-line" aria-hidden="true"></span>
-              <span>Road Route (OSRM)</span>
+              <span>Selected Route</span>
             </span>
+            {routes.length > 1 && (
+              <span className="legend-item">
+                <span className="legend-route-line legend-route-alt" aria-hidden="true"></span>
+                <span>Alternative Route</span>
+              </span>
+            )}
           </div>
         </div>
 
@@ -219,5 +258,4 @@ export const MapView: FC = () => {
     </div>
   )
 }
-
 export default MapView

@@ -8,7 +8,7 @@ const App: FC = () => {
       <header className="varsha-header">
         <div className="header-meta">
           <span className="badge badge-accent">MY Bharat Hackathon</span>
-          <span className="badge badge-subtle">Phase 3 &bull; Road Routing (OSRM)</span>
+          <span className="badge badge-subtle">Phase 3 &bull; Route Comparison (OSRM)</span>
           <span className="badge badge-pilot">Pilot: Navi Mumbai</span>
         </div>
 
