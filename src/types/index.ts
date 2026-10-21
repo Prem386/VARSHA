@@ -1,6 +1,6 @@
 export type PilotArea = 'Navi Mumbai'
 
-export type HazardSeverity = 'low' | 'moderate' | 'high' | 'severe'
+export type HazardSeverity = 'low' | 'medium' | 'high'
 
 export type HazardType =
   | 'waterlogging'

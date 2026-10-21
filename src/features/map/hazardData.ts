@@ -1,0 +1,55 @@
+import type { HazardLocation } from '../../types'
+
+// ponytail: hardcoded illustrative dataset; no backend API needed for prototype
+export const SIMULATED_HAZARDS: HazardLocation[] = [
+  {
+    id: 'sim-haz-01',
+    name: 'Illustrative Waterlogging Point A',
+    area: 'Vashi Sector 17 Vicinity (Illustrative)',
+    coordinates: [19.0760, 72.9985],
+    hazardType: 'waterlogging',
+    severity: 'medium',
+    description: 'Simulated stormwater accumulation along curb lanes causing vehicular slowdown.',
+    isSimulated: true,
+  },
+  {
+    id: 'sim-haz-02',
+    name: 'Illustrative Flooded Underpass Scenario B',
+    area: 'Airoli Transit Link (Illustrative)',
+    coordinates: [19.1550, 72.9990],
+    hazardType: 'flooded_underpass',
+    severity: 'high',
+    description: 'Simulated severe water ingress in low-lying railway underpass; modeled as impassable.',
+    isSimulated: true,
+  },
+  {
+    id: 'sim-haz-03',
+    name: 'Illustrative Traffic Obstruction Point C',
+    area: 'Turbhe Naka Junction (Illustrative)',
+    coordinates: [19.0620, 73.0180],
+    hazardType: 'traffic_obstruction',
+    severity: 'low',
+    description: 'Simulated temporary lane obstruction caused by drainage runoff management.',
+    isSimulated: true,
+  },
+  {
+    id: 'sim-haz-04',
+    name: 'Illustrative Waterlogging Point D',
+    area: 'Nerul Palm Beach Vicinity (Illustrative)',
+    coordinates: [19.0320, 73.0180],
+    hazardType: 'waterlogging',
+    severity: 'high',
+    description: 'Simulated high-tide tidal backflow inundating outer lanes during heavy downpour.',
+    isSimulated: true,
+  },
+  {
+    id: 'sim-haz-05',
+    name: 'Illustrative Submerged Road Scenario E',
+    area: 'CBD Belapur Creek Approach (Illustrative)',
+    coordinates: [19.0180, 73.0420],
+    hazardType: 'submerged_road',
+    severity: 'medium',
+    description: 'Simulated standing water across carriageway with reduced traction.',
+    isSimulated: true,
+  },
+]
