@@ -46,3 +46,24 @@ export interface RoadRoute {
 }
 
 export type RouteStatus = 'idle' | 'loading' | 'success' | 'error'
+
+export interface HazardProximityResult {
+  hazardId: string
+  hazardName: string
+  hazardType: HazardType
+  severity: HazardSeverity
+  distanceMeters: number
+  isNearby: boolean
+  hazard: HazardLocation
+}
+
+export interface ProximityDetectionOptions {
+  thresholdMeters?: number
+}
+
+export interface RouteHazardProximitySummary {
+  thresholdMeters: number
+  evaluatedHazardCount: number
+  nearbyHazards: HazardProximityResult[]
+  allHazards: HazardProximityResult[]
+}
