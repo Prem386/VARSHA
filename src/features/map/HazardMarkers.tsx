@@ -56,6 +56,12 @@ export const HazardMarkers: FC<HazardMarkersProps> = ({ hazards = SIMULATED_HAZA
           key={hazard.id}
           position={hazard.coordinates}
           icon={ICONS[hazard.severity]}
+          eventHandlers={{
+            click: (e) => {
+              // ponytail: stop propagation so hazard clicks do not trigger origin/destination map selection
+              L.DomEvent.stopPropagation(e.originalEvent)
+            },
+          }}
         >
           <Popup className="varsha-hazard-popup" maxWidth={300} minWidth={240}>
             <div className="hazard-popup-card">

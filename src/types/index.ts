@@ -28,3 +28,10 @@ export interface RouteOption {
   safetyScore: number // 0-100 (higher = safer)
   isRecommended: boolean
 }
+
+export type RouteEndpointType = 'origin' | 'destination'
+
+export interface SelectedLocation {
+  label: string
+  coordinates: [number, number] // [lat, lng]
+}

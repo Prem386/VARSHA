@@ -8,7 +8,7 @@ const App: FC = () => {
       <header className="varsha-header">
         <div className="header-meta">
           <span className="badge badge-accent">MY Bharat Hackathon</span>
-          <span className="badge badge-subtle">Phase 2 &bull; Hazard Markers</span>
+          <span className="badge badge-subtle">Phase 3 &bull; Route Endpoints</span>
           <span className="badge badge-pilot">Pilot: Navi Mumbai</span>
         </div>
 
@@ -53,10 +53,10 @@ const App: FC = () => {
                 Interactive Route &amp; Hazard Map
               </h3>
               <p className="section-subtitle">
-                Pilot Area: Navi Mumbai (19.0330&deg; N, 73.0297&deg; E) &bull; Pan, zoom, and click markers
+                Pilot Area: Navi Mumbai (19.0330&deg; N, 73.0297&deg; E) &bull; Select origin &amp; destination on map
               </p>
             </div>
-            <span className="phase-indicator">Simulated Hazard Markers Active</span>
+            <span className="phase-indicator">Route Selection &amp; Hazards Active</span>
           </div>
 
           <MapView />
