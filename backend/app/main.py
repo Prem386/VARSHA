@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.routes import health
+from app.api.routes import health, alerts
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -27,3 +27,4 @@ if settings.CORS_ORIGINS:
 
 # Include versioned routers
 app.include_router(health.router, prefix=settings.API_V1_STR)
+app.include_router(alerts.router, prefix=settings.API_V1_STR)

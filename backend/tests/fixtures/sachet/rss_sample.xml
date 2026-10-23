@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TEST FIXTURE: Synthetic test data for VARSHA automated test suite. Does not represent live disaster conditions. -->
+<rss version="2.0">
+  <channel>
+    <title>NDMA SACHET Test Alert Feed</title>
+    <link>https://sachet.ndma.gov.in</link>
+    <description>Simulated disaster alert feed for automated offline tests</description>
+    <language>en-in</language>
+    <item>
+      <title>Flash Flood Warning for Thane</title>
+      <link>https://sachet.ndma.gov.in/cap_public_website/FetchXMLFile?identifier=TEST-ALERT-001</link>
+      <description>Heavy rainfall leading to localized waterlogging in low-lying areas.</description>
+      <pubDate>Fri, 23 Oct 2026 12:00:00 +0530</pubDate>
+      <guid>TEST-ALERT-001</guid>
+    </item>
+    <item>
+      <title>Thunderstorm Alert for Raigad</title>
+      <link>https://sachet.ndma.gov.in/cap_public_website/FetchXMLFile?identifier=TEST-ALERT-002</link>
+      <description>Moderate thunderstorm accompanied by gusty winds.</description>
+      <pubDate>Fri, 23 Oct 2026 13:00:00 +0530</pubDate>
+      <guid>TEST-ALERT-002</guid>
+    </item>
+  </channel>
+</rss>

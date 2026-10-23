@@ -18,6 +18,13 @@ class Settings(BaseSettings):
     # Unrestricted wildcard origins ("*") should never be used in production.
     CORS_ORIGINS: Union[List[str], str] = ["http://localhost:5173"]
 
+    # NDMA SACHET alert feed settings
+    # Default is the official nationwide RSS feed; state-specific feeds (e.g. rss_maharashtra.xml) are configurable.
+    SACHET_FEED_URL: str = "https://sachet.ndma.gov.in/cap_public_website/rss/rss_india.xml"
+    SACHET_REQUEST_TIMEOUT_SECONDS: float = 10.0
+    SACHET_CACHE_TTL_SECONDS: int = 300
+    SACHET_MAX_ALERTS_PER_FETCH: int = 20
+
     @field_validator("CORS_ORIGINS", mode="after")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:

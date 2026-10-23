@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TEST FIXTURE: Empty feed for VARSHA automated test suite. Does not represent live disaster conditions. -->
+<rss version="2.0">
+  <channel>
+    <title>NDMA SACHET Test Alert Feed - Empty</title>
+    <link>https://sachet.ndma.gov.in</link>
+    <description>Simulated zero-alert feed</description>
+  </channel>
+</rss>

@@ -99,6 +99,18 @@ class BoundingBox(BaseModel):
             max_latitude=max_lat,
         )
 
+    def contains_point(self, latitude: float, longitude: float) -> bool:
+        """Check if (latitude, longitude) falls inside this bounding box."""
+        return (
+            self.min_latitude <= latitude <= self.max_latitude
+            and self.min_longitude <= longitude <= self.max_longitude
+        )
+
+    def contains_coordinate(self, coord: "Coordinate") -> bool:
+        """Check if a Coordinate object falls inside this bounding box."""
+        return self.contains_point(coord.latitude, coord.longitude)
+
+
 
 class HealthResponse(BaseModel):
     """Health check response schema."""

@@ -26,12 +26,13 @@ VARSHA is a web application designed to help commuters make better-informed trav
 
 ## Development Status
 - **Phase 1-4 (Complete)**: React + Vite + TypeScript frontend with interactive map, alternative routing, simulated hazard markers, hazard proximity analysis, and explainable risk scoring (46 passing tests).
-- **Phase 5.2 (Complete)**: FastAPI backend foundation (`backend/`) establishing project structure, configuration, CORS, geographic schemas, health checking, and test suite. External hazard/weather data providers are not yet integrated.
-- **Phase 5.3+ (Upcoming)**: External provider integrations (NDMA SACHET, Open-Meteo), backend hazard normalization, and live risk evaluation.
+- **Phase 5.2 (Complete)**: FastAPI backend foundation (`backend/`) establishing project structure, configuration, CORS, geographic schemas, health checking, and test suite.
+- **Phase 5.3B (Complete)**: NDMA SACHET disaster alert provider (`backend/app/services/alerts/sachet.py`), normalized CAP 1.2 models (`backend/app/schemas/alerts.py`), in-memory TTL caching with stale-fallback, and `GET /api/v1/alerts` endpoint (44 passing tests).
+- **Phase 5.4+ (Upcoming)**: Open-Meteo rainfall forecast provider, live hazard evaluation, frontend integration.
 
 ## Repository Structure
 - `frontend/` — React, Vite, TypeScript, React Leaflet, OpenStreetMap, OSRM routing interface.
-- `backend/` — Python FastAPI foundation, configuration, geographic schemas, and health endpoints.
+- `backend/` — Python FastAPI backend with NDMA SACHET alert adapter, in-memory TTL cache, geographic models, and test suite.
 
 ## Local Setup & Development
 
@@ -81,16 +82,81 @@ pytest tests -v
 uvicorn app.main:app --reload --port 8000
 ```
 
+### Feed Configuration
+Configure the alert feed in `backend/.env` (or environment variables):
+```env
+# Official nationwide RSS feed (default)
+SACHET_FEED_URL=https://sachet.ndma.gov.in/cap_public_website/rss/rss_india.xml
+
+# Or state-specific feed (e.g. Maharashtra):
+# SACHET_FEED_URL=https://sachet.ndma.gov.in/cap_public_website/rss/rss_maharashtra.xml
+
+SACHET_REQUEST_TIMEOUT_SECONDS=10.0
+SACHET_CACHE_TTL_SECONDS=300
+SACHET_MAX_ALERTS_PER_FETCH=20
+```
+
 ### Local API Endpoints
 - **Health Check**: `GET http://localhost:8000/api/v1/health`
+- **Disaster Alerts**: `GET http://localhost:8000/api/v1/alerts`
+- **Filtered Alerts by BBox**: `GET http://localhost:8000/api/v1/alerts?bbox=72.8,18.9,73.1,19.2&active_only=true`
 - **Interactive API Docs (Swagger UI)**: `http://localhost:8000/docs`
 - **Alternative API Docs (ReDoc)**: `http://localhost:8000/redoc`
 - **OpenAPI Schema**: `GET http://localhost:8000/api/v1/openapi.json`
 
-> **Note on Upstream Data Providers**: External environmental, flood, and weather data feeds (such as NDMA SACHET or Open-Meteo) are not yet integrated in Phase 5.2. The backend health check indicates local service process availability only.
+### Endpoint Example (`GET /api/v1/alerts`)
+```json
+{
+  "provider": {
+    "provider": "ndma_sachet",
+    "status": "ok",
+    "is_cached": false,
+    "is_stale": false,
+    "retrieved_at": "2026-10-23T15:15:00Z",
+    "error_message": null,
+    "feed_url": "https://sachet.ndma.gov.in/cap_public_website/rss/rss_india.xml"
+  },
+  "total": 1,
+  "alerts": [
+    {
+      "provider": "ndma_sachet",
+      "identifier": "IN-MH-2026-001",
+      "sender": "in-imd-mumbai",
+      "status": "Actual",
+      "msg_type": "Alert",
+      "category": "Met",
+      "event": "Flash Flood",
+      "headline": "Flash Flood Warning for Thane",
+      "severity": "Severe",
+      "urgency": "Expected",
+      "certainty": "Likely",
+      "is_active": true,
+      "language": "en-IN",
+      "area_description": "Thane District, Maharashtra",
+      "geocodes": [{"value_name": "LGD", "value": "496"}],
+      "geometry_type": "unresolved",
+      "has_spatial_geometry": false
+    }
+  ],
+  "spatial_filter_applied": false,
+  "spatial_filter_note": null
+}
+```
+
+### Provider Failure & Staleness Semantics
+Clients distinguish four distinct states via `provider` metadata:
+1. **Successful retrieval with alerts**: `provider.status == "ok"`, `total > 0`, `is_stale == false`.
+2. **Successful retrieval with zero alerts**: `provider.status == "ok"`, `total == 0`, `is_stale == false` (indicates upstream feed has 0 active alerts).
+3. **Stale cache fallback (degraded)**: `provider.status == "degraded"`, `is_stale == true` (upstream unreachable/timed out, but prior cache is served with non-sensitive error description).
+4. **Provider unavailable (cold start)**: `provider.status == "unavailable"`, `total == 0`, `is_stale == false` (upstream unreachable and no cache exists). **Never interpreted as zero hazards.**
+
+### Limitations of SACHET Alerts & Geographic Precision
+1. **District-Level Resolution**: Most SACHET CAP alerts contain textual district descriptions and LGD codes rather than inline polygons.
+2. **No Point Hazard Fabrications**: The system explicitly does **not** invent approximate centroids, bounding boxes, or street-level coordinates for district-only alerts.
+3. **Spatial Bounding-Box Filtering**: Spatial `bbox` filtering matches alerts that possess verified geometry (`has_spatial_geometry: true`). Unresolved district-level alerts cannot be geometrically placed and are excluded from coordinate-level bbox matches to prevent false positives.
+4. **Single-Process Cache**: In-memory cache is single-process and in-memory. Cache resets on server restarts and is not shared across multi-process workers.
 
 ## Features Not Yet Implemented (Phase Scope Boundaries)
-- Live NDMA SACHET CAP alert ingestion (Phase 5.3)
 - Live weather/precipitation provider feeds (Open-Meteo)
-- Persistent database storage or caching layer
-- Rule-based backend route risk scoring engine
+- Persistent database storage layer
+- Backend route risk scoring integration with live alerts

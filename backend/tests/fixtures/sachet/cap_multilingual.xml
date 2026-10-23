@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TEST FIXTURE: Multilingual synthetic CAP 1.2 XML alert for VARSHA automated test suite. Does not represent live disaster conditions. -->
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>TEST-ALERT-MULTI-002</identifier>
+  <sender>in-imd-mumbai</sender>
+  <sent>2026-10-23T12:30:00+05:30</sent>
+  <status>Actual</status>
+  <msgType>Alert</msgType>
+  <scope>Public</scope>
+  <info>
+    <language>hi-IN</language>
+    <category>Met</category>
+    <event>भारी बारिश</event>
+    <urgency>Expected</urgency>
+    <severity>Moderate</severity>
+    <certainty>Likely</certainty>
+    <headline>ठाणे जिले के लिए भारी बारिश की चेतावनी</headline>
+    <description>निचले इलाकों में जलभराव की संभावना है।</description>
+    <area>
+      <areaDesc>ठाणे</areaDesc>
+    </area>
+  </info>
+  <info>
+    <language>en-IN</language>
+    <category>Met</category>
+    <event>Heavy Rainfall</event>
+    <urgency>Expected</urgency>
+    <severity>Moderate</severity>
+    <certainty>Likely</certainty>
+    <effective>2026-10-23T12:30:00+05:30</effective>
+    <expires>2026-10-24T12:30:00+05:30</expires>
+    <headline>Heavy Rainfall Warning for Thane</headline>
+    <description>Moderate waterlogging expected on key arterial roads during peak monsoon hours.</description>
+    <instruction>Drive with caution and check waterlogged points before departure.</instruction>
+    <area>
+      <areaDesc>Thane District, Maharashtra</areaDesc>
+      <geocode>
+        <valueName>LGD</valueName>
+        <value>496</value>
+      </geocode>
+    </area>
+  </info>
+</alert>

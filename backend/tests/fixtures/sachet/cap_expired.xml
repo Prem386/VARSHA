@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TEST FIXTURE: Expired CAP 1.2 XML alert for VARSHA automated test suite. Does not represent live disaster conditions. -->
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>TEST-ALERT-EXPIRED-005</identifier>
+  <sender>in-imd-mumbai</sender>
+  <sent>2020-01-01T00:00:00+05:30</sent>
+  <status>Actual</status>
+  <msgType>Alert</msgType>
+  <info>
+    <language>en-IN</language>
+    <category>Met</category>
+    <event>Heavy Rain</event>
+    <urgency>Past</urgency>
+    <severity>Minor</severity>
+    <certainty>Observed</certainty>
+    <expires>2020-01-01T06:00:00+05:30</expires>
+    <headline>Expired Historical Alert</headline>
+    <description>Historical rainfall alert from past monsoon season.</description>
+    <area>
+      <areaDesc>Navi Mumbai</areaDesc>
+    </area>
+  </info>
+</alert>

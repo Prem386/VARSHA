@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TEST FIXTURE: CAP 1.2 XML with polygon geometry for VARSHA automated test suite. Does not represent live disaster conditions. -->
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>TEST-ALERT-POLY-006</identifier>
+  <sender>in-imd-mumbai</sender>
+  <sent>2026-10-23T15:00:00+05:30</sent>
+  <status>Actual</status>
+  <msgType>Alert</msgType>
+  <info>
+    <language>en-IN</language>
+    <category>Met</category>
+    <event>Severe Inundation</event>
+    <urgency>Immediate</urgency>
+    <severity>Severe</severity>
+    <certainty>Observed</certainty>
+    <effective>2026-10-23T15:00:00+05:30</effective>
+    <expires>2026-10-24T15:00:00+05:30</expires>
+    <headline>Severe Inundation Warning for Vashi / Belapur Corridor</headline>
+    <description>Corridor-level flood warning with bounded polygon coordinates.</description>
+    <instruction>Avoid traversing low-lying bridge approaches.</instruction>
+    <area>
+      <areaDesc>Vashi and Belapur, Navi Mumbai</areaDesc>
+      <polygon>19.03,73.02 19.05,73.02 19.05,73.04 19.03,73.04 19.03,73.02</polygon>
+    </area>
+  </info>
+</alert>

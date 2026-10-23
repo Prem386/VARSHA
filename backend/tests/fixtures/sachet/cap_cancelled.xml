@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TEST FIXTURE: Cancellation CAP 1.2 XML alert for VARSHA automated test suite. Does not represent live disaster conditions. -->
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>TEST-ALERT-CANCEL-003</identifier>
+  <sender>in-imd-rsmc-newdelhi</sender>
+  <sent>2026-10-23T14:00:00+05:30</sent>
+  <status>Actual</status>
+  <msgType>Cancel</msgType>
+  <references>in-imd-rsmc-newdelhi,TEST-ALERT-001,2026-10-23T12:00:00+05:30</references>
+  <info>
+    <language>en-IN</language>
+    <category>Met</category>
+    <event>Flash Flood</event>
+    <urgency>Past</urgency>
+    <severity>Minor</severity>
+    <certainty>Unlikely</certainty>
+    <headline>Flash Flood Warning Cancelled for Thane</headline>
+    <description>The earlier flash flood warning has been rescinded due to rapid drainage and reduced rainfall intensity.</description>
+    <instruction>Normal mobility may resume. Remain vigilant for residual slippery conditions.</instruction>
+    <area>
+      <areaDesc>Thane District</areaDesc>
+    </area>
+  </info>
+</alert>
