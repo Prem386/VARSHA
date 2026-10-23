@@ -34,6 +34,7 @@ export type RouteEndpointType = 'origin' | 'destination'
 export interface SelectedLocation {
   label: string
   coordinates: [number, number] // [lat, lng]
+  landmarkId?: string
 }
 
 export interface RoadRoute {

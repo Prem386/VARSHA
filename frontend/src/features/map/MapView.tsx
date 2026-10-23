@@ -65,7 +65,7 @@ export const MapView: FC = () => {
 
     if (activeTarget === 'origin') {
       setOrigin({
-        label: 'Origin (Point A)',
+        label: `Pinned location (${formattedLat.toFixed(4)}, ${formattedLng.toFixed(4)})`,
         coordinates: [formattedLat, formattedLng],
       })
       // ponytail: fluid UX advances target to destination when destination unset
@@ -74,7 +74,7 @@ export const MapView: FC = () => {
       }
     } else {
       setDestination({
-        label: 'Destination (Point B)',
+        label: `Pinned location (${formattedLat.toFixed(4)}, ${formattedLng.toFixed(4)})`,
         coordinates: [formattedLat, formattedLng],
       })
       if (!origin) {
@@ -83,12 +83,28 @@ export const MapView: FC = () => {
     }
   }
 
+  const handleSelectOrigin = (location: SelectedLocation) => {
+    clearExistingRoute()
+    setOrigin(location)
+    if (!destination) {
+      setActiveTarget('destination')
+    }
+  }
+
+  const handleSelectDestination = (location: SelectedLocation) => {
+    clearExistingRoute()
+    setDestination(location)
+    if (!origin) {
+      setActiveTarget('origin')
+    }
+  }
+
   const handleSwap = () => {
     clearExistingRoute()
     const prevOrigin = origin
     const prevDest = destination
-    setOrigin(prevDest ? { ...prevDest, label: 'Origin (Point A)' } : null)
-    setDestination(prevOrigin ? { ...prevOrigin, label: 'Destination (Point B)' } : null)
+    setOrigin(prevDest)
+    setDestination(prevOrigin)
   }
 
   const handleClear = (target: RouteEndpointType) => {
@@ -148,6 +164,8 @@ export const MapView: FC = () => {
         destination={destination}
         activeTarget={activeTarget}
         onSelectTarget={setActiveTarget}
+        onSelectOrigin={handleSelectOrigin}
+        onSelectDestination={handleSelectDestination}
         onSwap={handleSwap}
         onClear={handleClear}
         isIdentical={isIdentical}

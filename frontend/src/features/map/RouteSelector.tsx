@@ -8,12 +8,15 @@ import type {
   SelectedLocation,
 } from '../../types'
 import { formatDistance, formatDuration } from '../routing/osrmService'
+import PlaceSearchInput from '../search/PlaceSearchInput'
 
 interface RouteSelectorProps {
   origin: SelectedLocation | null
   destination: SelectedLocation | null
   activeTarget: RouteEndpointType
   onSelectTarget: (target: RouteEndpointType) => void
+  onSelectOrigin: (location: SelectedLocation) => void
+  onSelectDestination: (location: SelectedLocation) => void
   onSwap: () => void
   onClear: (target: RouteEndpointType) => void
   isIdentical: boolean
@@ -166,6 +169,8 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
   destination,
   activeTarget,
   onSelectTarget,
+  onSelectOrigin,
+  onSelectDestination,
   onSwap,
   onClear,
   isIdentical,
@@ -181,10 +186,6 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
   const selectedRoute =
     routes.find((r) => r.id === selectedRouteId) ?? routes[0] ?? null
 
-  const formatCoords = (coords: [number, number]): string => {
-    return `${coords[0].toFixed(4)}, ${coords[1].toFixed(4)}`
-  }
-
   const bothSelected = origin !== null && destination !== null
   const canPlanRoute = bothSelected && !isIdentical
 
@@ -192,74 +193,27 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
     <div className="route-selector-container" role="region" aria-label="Route Origin and Destination Controls">
       <div className="route-selector-header">
         <div className="selector-title-group">
-          <span className="selector-badge">Phase 4 &bull; Route Risk Comparison</span>
-          <h4 className="selector-heading">Select Origin &amp; Destination</h4>
+          <span className="selector-badge">Navi Mumbai Pilot &bull; Route Safety</span>
+          <h4 className="selector-heading">Plan Route &amp; Compare Safety</h4>
         </div>
         <p className="selector-instruction">
-          {activeTarget === 'origin'
-            ? '🎯 Active: Click anywhere on the map to place Origin (Point A)'
-            : '🎯 Active: Click anywhere on the map to place Destination (Point B)'}
+          Search recognizable landmarks below or click &quot;Pick on Map&quot; to place pins directly.
         </p>
       </div>
 
       <div className="route-endpoints-grid">
-        {/* Origin Selection Box */}
-        <div
-          className={`endpoint-card ${activeTarget === 'origin' ? 'endpoint-card-active' : ''}`}
-          onClick={() => onSelectTarget('origin')}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault()
-              onSelectTarget('origin')
-            }
-          }}
-          aria-pressed={activeTarget === 'origin'}
-          aria-label={`Origin location: ${origin ? formatCoords(origin.coordinates) : 'Not set. Click to activate map selection'}`}
-        >
-          <div className="endpoint-card-header">
-            <div className="endpoint-type-tag tag-origin">
-              <span className="endpoint-letter">A</span>
-              <span className="endpoint-name">Origin</span>
-            </div>
-            {origin && (
-              <button
-                type="button"
-                className="btn-clear-endpoint"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onClear('origin')
-                }}
-                title="Clear origin location"
-                aria-label="Clear origin selection"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          <div className="endpoint-content">
-            {origin ? (
-              <div className="endpoint-coords-display">
-                <span className="coord-value">{formatCoords(origin.coordinates)}</span>
-                <span className="coord-label">(Lat, Lng)</span>
-              </div>
-            ) : (
-              <div className="endpoint-empty-prompt">
-                <span className="prompt-text">
-                  {activeTarget === 'origin' ? 'Click map to place pin' : 'Click to select origin'}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {activeTarget === 'origin' && (
-            <div className="active-pill" aria-hidden="true">
-              Map Click Target
-            </div>
-          )}
-        </div>
+        <PlaceSearchInput
+          id="route-origin-search"
+          endpointType="origin"
+          label="Origin"
+          tagLetter="A"
+          placeholder="Search landmark or click map (e.g. Vashi Station)"
+          value={origin}
+          onSelect={onSelectOrigin}
+          onClear={() => onClear('origin')}
+          isActiveTarget={activeTarget === 'origin'}
+          onActivateTarget={() => onSelectTarget('origin')}
+        />
 
         {/* Swap Button */}
         <div className="swap-button-wrapper">
@@ -276,63 +230,18 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
           </button>
         </div>
 
-        {/* Destination Selection Box */}
-        <div
-          className={`endpoint-card ${activeTarget === 'destination' ? 'endpoint-card-active' : ''}`}
-          onClick={() => onSelectTarget('destination')}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault()
-              onSelectTarget('destination')
-            }
-          }}
-          aria-pressed={activeTarget === 'destination'}
-          aria-label={`Destination location: ${destination ? formatCoords(destination.coordinates) : 'Not set. Click to activate map selection'}`}
-        >
-          <div className="endpoint-card-header">
-            <div className="endpoint-type-tag tag-destination">
-              <span className="endpoint-letter">B</span>
-              <span className="endpoint-name">Destination</span>
-            </div>
-            {destination && (
-              <button
-                type="button"
-                className="btn-clear-endpoint"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onClear('destination')
-                }}
-                title="Clear destination location"
-                aria-label="Clear destination selection"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          <div className="endpoint-content">
-            {destination ? (
-              <div className="endpoint-coords-display">
-                <span className="coord-value">{formatCoords(destination.coordinates)}</span>
-                <span className="coord-label">(Lat, Lng)</span>
-              </div>
-            ) : (
-              <div className="endpoint-empty-prompt">
-                <span className="prompt-text">
-                  {activeTarget === 'destination' ? 'Click map to place pin' : 'Click to select destination'}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {activeTarget === 'destination' && (
-            <div className="active-pill active-pill-dest" aria-hidden="true">
-              Map Click Target
-            </div>
-          )}
-        </div>
+        <PlaceSearchInput
+          id="route-destination-search"
+          endpointType="destination"
+          label="Destination"
+          tagLetter="B"
+          placeholder="Search landmark or click map (e.g. Belapur CBD)"
+          value={destination}
+          onSelect={onSelectDestination}
+          onClear={() => onClear('destination')}
+          isActiveTarget={activeTarget === 'destination'}
+          onActivateTarget={() => onSelectTarget('destination')}
+        />
       </div>
 
       {/* Validation and Status Feedback */}
