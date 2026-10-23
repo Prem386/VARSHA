@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     SACHET_CACHE_TTL_SECONDS: int = 300
     SACHET_MAX_ALERTS_PER_FETCH: int = 20
 
+    # Open-Meteo rainfall forecast settings
+    # Model-derived numerical weather prediction data; not direct rain-gauge observations.
+    OPEN_METEO_BASE_URL: str = "https://api.open-meteo.com/v1/forecast"
+    OPEN_METEO_REQUEST_TIMEOUT_SECONDS: float = 10.0
+    OPEN_METEO_CACHE_TTL_SECONDS: int = 900
+    OPEN_METEO_MAX_FORECAST_HOURS: int = 72
+
     @field_validator("CORS_ORIGINS", mode="after")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
