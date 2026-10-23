@@ -379,3 +379,30 @@ test('Test O — Existing integration: SIMULATED_HAZARDS and Feature 4.1 proximi
   assert.ok(riskResult.score >= 20)
   assert.ok(riskResult.riskCategory === 'Low' || riskResult.riskCategory === 'Moderate')
 })
+
+test('Test P — Direct HazardProximityResult array input: calculateRouteRiskScore accepts array without wrapping in summary', () => {
+  const h1 = createTestProximityResult('h-arr-1', 'high', 10.0)
+  const h2 = createTestProximityResult('h-arr-2', 'low', 80.0)
+  const result = calculateRouteRiskScore([h1, h2])
+
+  assert.equal(result.score, 40) // 35 * 1.0 + 10 * 0.5 = 35 + 5 = 40
+  assert.equal(result.includedHazardCount, 2)
+  assert.equal(result.riskCategory, 'Moderate')
+  assert.equal(result.thresholdMeters, DEFAULT_PROXIMITY_THRESHOLD_METERS)
+})
+
+test('Test Q — getRiskCategory: negative, NaN, and Infinity scores map to no-hazard category', () => {
+  assert.equal(getRiskCategory(-1), 'No nearby simulated hazards')
+  assert.equal(getRiskCategory(-100), 'No nearby simulated hazards')
+  assert.equal(getRiskCategory(NaN), 'No nearby simulated hazards')
+  assert.equal(getRiskCategory(Infinity), 'No nearby simulated hazards')
+  assert.equal(getRiskCategory(-Infinity), 'No nearby simulated hazards')
+})
+
+test('Test R — calculateProximityMultiplier: zero threshold only qualifies hazard at 0m', () => {
+  // At threshold=0: only distance=0 is within band 1 (<=25m), others excluded
+  assert.equal(calculateProximityMultiplier(0, 0), 1.0)
+  // distance=0.1 > threshold+1e-6=0+1e-6, so excluded
+  assert.equal(calculateProximityMultiplier(0.1, 0), 0)
+  assert.equal(calculateProximityMultiplier(1, 0), 0)
+})

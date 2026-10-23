@@ -10,6 +10,7 @@ import {
   isValidCoordinate,
 } from '../src/features/routing/hazardProximity.ts'
 import { SIMULATED_HAZARDS } from '../src/features/map/hazardData.ts'
+import { calculateRouteRiskScore } from '../src/features/routing/routeRiskScoring.ts'
 import type { HazardLocation, RoadRoute } from '../src/types/index.ts'
 
 // Helper to make test hazards
@@ -402,4 +403,73 @@ test('Test SIMULATED_HAZARDS integration: actual project hazards evaluate with R
   assert.ok(nearby[0].distanceMeters <= 25)
   assert.equal(nearby[0].isNearby, true)
   assert.equal(nearby[0].hazard.isSimulated, true)
+})
+
+test('Test N — isValidCoordinate: rejects Infinity, empty array, non-array, out-of-range values', () => {
+  // Valid
+  assert.equal(isValidCoordinate([19.0760, 72.9985]), true)
+  assert.equal(isValidCoordinate([0, 0]), true)
+  assert.equal(isValidCoordinate([90, 180]), true)
+  assert.equal(isValidCoordinate([-90, -180]), true)
+
+  // Invalid: non-finite
+  assert.equal(isValidCoordinate([Infinity, 73.0]), false)
+  assert.equal(isValidCoordinate([19.0, Infinity]), false)
+  assert.equal(isValidCoordinate([NaN, 73.0]), false)
+  assert.equal(isValidCoordinate([19.0, NaN]), false)
+
+  // Invalid: out-of-range
+  assert.equal(isValidCoordinate([91, 73.0]), false)
+  assert.equal(isValidCoordinate([-91, 73.0]), false)
+  assert.equal(isValidCoordinate([19.0, 181]), false)
+  assert.equal(isValidCoordinate([19.0, -181]), false)
+
+  // Invalid structure
+  assert.equal(isValidCoordinate([]), false)
+  assert.equal(isValidCoordinate(null), false)
+  assert.equal(isValidCoordinate(undefined), false)
+  assert.equal(isValidCoordinate('19.0,73.0'), false)
+  assert.equal(isValidCoordinate(19.0), false)
+})
+
+test('Test O — Zero threshold: only hazards at exactly 0m distance qualify', () => {
+  const routeCoords: [number, number][] = [
+    [19.0700, 73.0000],
+    [19.0700, 73.0100],
+  ]
+  // Hazard exactly on segment midpoint (0m distance)
+  const onRoute = createTestHazard('haz-on', [19.0700, 73.0050])
+  // Hazard 1m away (should be excluded at threshold 0)
+  const offRoute = createTestHazard('haz-off', [19.07001, 73.0050])
+
+  const summaryOnRoute = evaluateRouteHazardProximity(routeCoords, [onRoute], { thresholdMeters: 0 })
+  assert.equal(summaryOnRoute.nearbyHazards.length, 1)
+  assert.ok(summaryOnRoute.nearbyHazards[0].distanceMeters < 0.1)
+
+  const summaryOffRoute = evaluateRouteHazardProximity(routeCoords, [offRoute], { thresholdMeters: 0 })
+  assert.equal(summaryOffRoute.nearbyHazards.length, 0)
+})
+
+test('Test P — Duplicate hazard IDs: proximity includes both; scoring deduplicates to nearest', () => {
+  // Two entries with same hazardId at different distances
+  const routeCoords: [number, number][] = [
+    [19.0700, 73.0000],
+    [19.0700, 73.0100],
+  ]
+  const haz1 = createTestHazard('dup-haz', [19.0701, 73.0050]) // ~11m from route
+  const haz2 = createTestHazard('dup-haz', [19.0705, 73.0050]) // ~55m from route
+
+  // evaluateRouteHazardProximity does NOT deduplicate — both appear in allHazards
+  const summary = evaluateRouteHazardProximity(routeCoords, [haz1, haz2])
+  assert.equal(summary.evaluatedHazardCount, 2)
+  assert.equal(summary.allHazards.length, 2)
+
+  // Both are nearby (within 100m), so nearbyHazards contains both
+  assert.equal(summary.nearbyHazards.length, 2)
+
+  // When passed to scoring, deduplication keeps the nearest distance entry
+  const result = calculateRouteRiskScore(summary)
+  assert.equal(result.includedHazardCount, 1)
+  // Nearest entry is ~11m → within 25m band → multiplier 1.0 → medium weight 20 → contribution 20
+  assert.ok(result.contributions[0].distanceMeters <= 15)
 })

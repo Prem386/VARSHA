@@ -166,3 +166,85 @@ test('handles empty routes array gracefully', () => {
   const assessments = assessRoutesRisk([], SIMULATED_HAZARDS)
   assert.deepEqual(assessments, {})
 })
+
+test('assessRouteRisk returns error for null route', () => {
+  const assessment = assessRouteRisk(null, SIMULATED_HAZARDS)
+  assert.equal(assessment.routeId, 'unknown')
+  assert.equal(assessment.status, 'error')
+  assert.ok(assessment.error?.includes('unavailable'))
+  assert.equal(assessment.result, undefined)
+})
+
+test('assessRouteRisk returns error for undefined route', () => {
+  const assessment = assessRouteRisk(undefined, SIMULATED_HAZARDS)
+  assert.equal(assessment.routeId, 'unknown')
+  assert.equal(assessment.status, 'error')
+})
+
+test('assessRoutesRisk with null hazards returns success zero-risk for valid route', () => {
+  const route: RoadRoute = {
+    id: 'route-no-hazards',
+    coordinates: [
+      [19.0180, 73.0419],
+      [19.0180, 73.0421],
+    ],
+    distanceMeters: 500,
+    durationSeconds: 60,
+    engineEstimateNotice: 'OSRM Demo',
+  }
+  const assessments = assessRoutesRisk([route], null)
+  assert.equal(assessments['route-no-hazards'].status, 'success')
+  assert.equal(assessments['route-no-hazards'].result?.score, 0)
+  assert.equal(assessments['route-no-hazards'].result?.riskCategory, 'No nearby simulated hazards')
+})
+
+test('assessRoutesRisk skips routes without a string id', () => {
+  // Route without id: assessRoutesRisk guards typeof route.id === 'string'
+  const routeNoId = {
+    id: undefined as unknown as string,
+    coordinates: [[19.0180, 73.0419], [19.0181, 73.0421]] as [number, number][],
+    distanceMeters: 100,
+    durationSeconds: 10,
+    engineEstimateNotice: '',
+  } as RoadRoute
+  const goodRoute: RoadRoute = {
+    id: 'good',
+    coordinates: [[19.0180, 73.0419], [19.0180, 73.0421]],
+    distanceMeters: 500,
+    durationSeconds: 60,
+    engineEstimateNotice: '',
+  }
+  const assessments = assessRoutesRisk([routeNoId, goodRoute], null)
+  // Only 'good' should appear; routeNoId has no string id so skipped
+  assert.ok(!Object.prototype.hasOwnProperty.call(assessments, 'undefined'))
+  assert.ok(Object.prototype.hasOwnProperty.call(assessments, 'good'))
+})
+
+test('success zero-risk assessment is distinguishable from error assessment', () => {
+  const farRoute: RoadRoute = {
+    id: 'far',
+    coordinates: [[18.9000, 72.8000], [18.9001, 72.8001]],
+    distanceMeters: 100,
+    durationSeconds: 10,
+    engineEstimateNotice: '',
+  }
+  const badRoute: RoadRoute = {
+    id: 'bad',
+    coordinates: [],
+    distanceMeters: 0,
+    durationSeconds: 0,
+    engineEstimateNotice: '',
+  }
+  const assessments = assessRoutesRisk([farRoute, badRoute], SIMULATED_HAZARDS)
+
+  // farRoute: success with score 0 (no nearby hazards)
+  assert.equal(assessments['far'].status, 'success')
+  assert.equal(assessments['far'].result?.score, 0)
+  assert.equal(assessments['far'].result?.riskCategory, 'No nearby simulated hazards')
+  assert.equal(assessments['far'].error, undefined)
+
+  // badRoute: error (empty coordinates)
+  assert.equal(assessments['bad'].status, 'error')
+  assert.equal(assessments['bad'].result, undefined)
+  assert.ok(typeof assessments['bad'].error === 'string')
+})
