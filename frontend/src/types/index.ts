@@ -44,6 +44,8 @@ export interface RoadRoute {
   distanceMeters: number
   durationSeconds: number
   engineEstimateNotice: string
+  corridorName?: string
+  isCorridorAlternative?: boolean
 }
 
 export type RouteStatus = 'idle' | 'loading' | 'success' | 'error'

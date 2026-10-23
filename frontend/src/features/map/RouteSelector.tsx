@@ -313,75 +313,103 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
                 Select a route card below or click an alternative dashed line on the map to change the highlighted path:
               </p>
               <div className="route-options-grid" role="radiogroup" aria-label="Available alternative routes">
-                {routes.map((r, index) => {
-                  const isSelected = r.id === selectedRoute.id
-                  const label = r.label || `Route ${index + 1}`
-                  return (
-                    <div
-                      key={r.id}
-                      className={`route-option-card ${isSelected ? 'route-option-card-selected' : ''}`}
-                      role="radio"
-                      aria-checked={isSelected}
-                      tabIndex={0}
-                      onClick={() => onSelectRoute(r.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          onSelectRoute(r.id)
-                        }
-                      }}
-                      aria-label={`${label}: ${formatDistance(r.distanceMeters)}, ${formatDuration(r.durationSeconds)}${isSelected ? ' (Currently Selected)' : ''}`}
-                    >
-                      <div className="route-card-top">
-                        <div className="route-card-title-group">
-                          <span className={`route-number-pill ${isSelected ? 'pill-selected' : ''}`}>
-                            {index + 1}
-                          </span>
-                          <span className="route-card-name">{label}</span>
-                        </div>
-                        {isSelected ? (
-                          <span className="route-status-tag tag-active">
-                            ✓ Highlighted
-                          </span>
-                        ) : (
-                          <span className="route-status-tag tag-alt">
-                            Alternative
-                          </span>
-                        )}
-                      </div>
+                {(() => {
+                  const minDuration = Math.min(...routes.map((r) => r.durationSeconds))
+                  const minDistance = Math.min(...routes.map((r) => r.distanceMeters))
+                  return routes.map((r, index) => {
+                    const isSelected = r.id === selectedRoute.id
+                    const label = r.label || `Route ${index + 1}`
+                    const isFastest = r.durationSeconds === minDuration
+                    const isShortest = r.distanceMeters === minDistance
 
-                      <div className="route-card-metrics">
-                        <div className="route-card-metric">
-                          <span className="card-metric-label">Distance</span>
-                          <span className="card-metric-val">{formatDistance(r.distanceMeters)}</span>
-                        </div>
-                        <div className="route-card-metric">
-                          <span className="card-metric-label">Est. Duration</span>
-                          <span className="card-metric-val">{formatDuration(r.durationSeconds)}</span>
-                        </div>
-                        <div className="route-card-metric">
-                          <span className="card-metric-label">Points</span>
-                          <span className="card-metric-val card-metric-pts">{r.coordinates.length} pts</span>
-                        </div>
-                      </div>
-
-                      {/* Prototype Risk Assessment */}
-                      <RouteRiskDisplay assessment={riskAssessments?.[r.id]} />
-
-                      <button
-                        type="button"
-                        className={`btn-select-route-action ${isSelected ? 'btn-select-active' : ''}`}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onSelectRoute(r.id)
+                    return (
+                      <div
+                        key={r.id}
+                        className={`route-option-card ${isSelected ? 'route-option-card-selected' : ''}`}
+                        role="radio"
+                        aria-checked={isSelected}
+                        tabIndex={0}
+                        onClick={() => onSelectRoute(r.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            onSelectRoute(r.id)
+                          }
                         }}
-                        aria-label={`Select ${label} to display on map`}
+                        aria-label={`${label}: ${formatDistance(r.distanceMeters)}, ${formatDuration(r.durationSeconds)}${isSelected ? ' (Currently Selected)' : ''}`}
                       >
-                        {isSelected ? 'Highlighted on Map' : 'Select This Route'}
-                      </button>
-                    </div>
-                  )
-                })}
+                        <div className="route-card-top">
+                          <div className="route-card-title-group">
+                            <span className={`route-number-pill ${isSelected ? 'pill-selected' : ''}`}>
+                              {index + 1}
+                            </span>
+                            <span className="route-card-name">{label}</span>
+                          </div>
+                          <div className="route-tags-group">
+                            {r.corridorName && (
+                              <span className="route-corridor-tag">
+                                {r.corridorName}
+                              </span>
+                            )}
+                            {isSelected ? (
+                              <span className="route-status-tag tag-active">
+                                ✓ Highlighted
+                              </span>
+                            ) : (
+                              <span className="route-status-tag tag-alt">
+                                Alternative
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Comparative Trade-off Badges */}
+                        <div className="route-tradeoff-badges">
+                          {isFastest && (
+                            <span className="tradeoff-badge badge-fastest">
+                              ⚡ Fastest Estimate
+                            </span>
+                          )}
+                          {isShortest && (
+                            <span className="tradeoff-badge badge-shortest">
+                              📏 Shortest Distance
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="route-card-metrics">
+                          <div className="route-card-metric">
+                            <span className="card-metric-label">Distance</span>
+                            <span className="card-metric-val">{formatDistance(r.distanceMeters)}</span>
+                          </div>
+                          <div className="route-card-metric">
+                            <span className="card-metric-label">Est. Duration</span>
+                            <span className="card-metric-val">{formatDuration(r.durationSeconds)}</span>
+                          </div>
+                          <div className="route-card-metric">
+                            <span className="card-metric-label">Points</span>
+                            <span className="card-metric-val card-metric-pts">{r.coordinates.length} pts</span>
+                          </div>
+                        </div>
+
+                        {/* Prototype Risk Assessment */}
+                        <RouteRiskDisplay assessment={riskAssessments?.[r.id]} />
+
+                        <button
+                          type="button"
+                          className={`btn-select-route-action ${isSelected ? 'btn-select-active' : ''}`}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onSelectRoute(r.id)
+                          }}
+                          aria-label={`Select ${label} to display on map`}
+                        >
+                          {isSelected ? 'Highlighted on Map' : 'Select This Route'}
+                        </button>
+                      </div>
+                    )
+                  })
+                })()}
               </div>
             </div>
           ) : (
@@ -404,6 +432,13 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
 
               {/* Single Route Risk Assessment */}
               <RouteRiskDisplay assessment={riskAssessments?.[selectedRoute.id]} />
+
+              <div className="single-route-fallback-notice" role="status">
+                <span className="notice-icon" aria-hidden="true">ℹ️</span>
+                <span className="notice-text">
+                  Single driving route returned by routing service. No distinct alternative corridor found for these endpoints.
+                </span>
+              </div>
             </div>
           )}
 
@@ -464,8 +499,8 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
           ) : routeStatus === 'success' ? (
             <span className="text-ready">
               {routes.length > 1
-                ? `✓ ${routes.length} alternative road routes retrieved. Click a card to change highlighted path.`
-                : '✓ Real road route displayed. Flood-risk evaluation and alternative routes follow in subsequent features.'}
+                ? `✓ ${routes.length} distinct road route candidates available for safety comparison. Click a card to highlight path.`
+                : '✓ 1 road route retrieved. Routing engine found no distinct alternative corridor for these endpoints.'}
             </span>
           ) : canPlanRoute ? (
             <span className="text-ready">

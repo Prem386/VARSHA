@@ -938,6 +938,59 @@
   gap: 0.75rem;
 }
 
+.single-route-fallback-notice {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.8rem;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.single-route-fallback-notice p {
+  margin: 0;
+}
+
+/* Route Trade-off & Corridor Badges */
+.route-tradeoff-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.15rem;
+}
+
+.tradeoff-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 9999px;
+  line-height: 1.2;
+}
+
+.badge-fastest {
+  background-color: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.badge-shortest {
+  background-color: rgba(52, 211, 153, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.35);
+}
+
+.route-corridor-tag {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  background-color: rgba(148, 163, 184, 0.15);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+}
+
 /* Route Risk Assessment Block */
 .route-risk-block {
   border-radius: var(--radius-sm);
