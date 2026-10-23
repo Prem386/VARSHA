@@ -25,20 +25,30 @@ VARSHA is a web application designed to help commuters make better-informed trav
 - Explainable route-risk comparison
 
 ## Development Status
-- **Phase 1 (Complete)**: React + Vite + TypeScript foundation established with landing view, civic theme, and map placeholder.
-- **Phase 2 (Upcoming)**: React Leaflet map integration, Navi Mumbai viewport, and simulated hazard overlays.
-- **Phase 3 (Future)**: Python FastAPI backend, OSRM routing candidate, and explainable safety scoring.
+- **Phase 1-4 (Complete)**: React + Vite + TypeScript frontend with interactive map, alternative routing, simulated hazard markers, hazard proximity analysis, and explainable risk scoring (46 passing tests).
+- **Phase 5.2 (Complete)**: FastAPI backend foundation (`backend/`) establishing project structure, configuration, CORS, geographic schemas, health checking, and test suite. External hazard/weather data providers are not yet integrated.
+- **Phase 5.3+ (Upcoming)**: External provider integrations (NDMA SACHET, Open-Meteo), backend hazard normalization, and live risk evaluation.
+
+## Repository Structure
+- `frontend/` — React, Vite, TypeScript, React Leaflet, OpenStreetMap, OSRM routing interface.
+- `backend/` — Python FastAPI foundation, configuration, geographic schemas, and health endpoints.
 
 ## Local Setup & Development
 
 ### Prerequisites
-- Node.js (v18+ recommended)
-- npm (v9+)
+- Node.js (v18+ recommended) and npm (v9+)
+- Python (3.10+ recommended, tested on Python 3.13)
 
-### Installation & Run Commands
+### Frontend Setup & Commands
 ```bash
+# Navigate to frontend
+cd frontend
+
 # Install dependencies
 npm install
+
+# Run frontend tests
+npm test
 
 # Start local development server
 npm run dev
@@ -50,11 +60,37 @@ npm run build
 npm run preview
 ```
 
-### Architecture Note
-Per Case C repository setup, the React application is maintained at the repository root to preserve the existing commit history and setup. The future Python FastAPI backend will reside under `backend/`.
+### Backend Setup & Commands
+```powershell
+# Navigate to backend
+cd backend
 
-## Features Not Yet Implemented (Phase 1 Scope Boundaries)
-- Interactive map pan/zoom and Leaflet layer rendering (Phase 2)
-- Start/destination point geocoding and route path calculation (Phase 2/3)
-- Real-time weather API or live municipal flood telemetry (Simulated data in Phase 2)
-- Rule-based risk assessment backend scoring engine (Phase 3)
+# Create virtual environment
+python -m venv .venv
+
+# Activate virtual environment (Windows PowerShell)
+.\.venv\Scripts\Activate.ps1
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run backend automated tests
+pytest tests -v
+
+# Start local FastAPI development server
+uvicorn app.main:app --reload --port 8000
+```
+
+### Local API Endpoints
+- **Health Check**: `GET http://localhost:8000/api/v1/health`
+- **Interactive API Docs (Swagger UI)**: `http://localhost:8000/docs`
+- **Alternative API Docs (ReDoc)**: `http://localhost:8000/redoc`
+- **OpenAPI Schema**: `GET http://localhost:8000/api/v1/openapi.json`
+
+> **Note on Upstream Data Providers**: External environmental, flood, and weather data feeds (such as NDMA SACHET or Open-Meteo) are not yet integrated in Phase 5.2. The backend health check indicates local service process availability only.
+
+## Features Not Yet Implemented (Phase Scope Boundaries)
+- Live NDMA SACHET CAP alert ingestion (Phase 5.3)
+- Live weather/precipitation provider feeds (Open-Meteo)
+- Persistent database storage or caching layer
+- Rule-based backend route risk scoring engine
