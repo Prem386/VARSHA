@@ -143,10 +143,16 @@ export const MapView: FC = () => {
 
     try {
       const results = await fetchRoadRoutes(origin.coordinates, destination.coordinates, controller.signal)
+      if (controller.signal.aborted || activeRequestRef.current !== controller) {
+        return
+      }
       setRoutes(results)
       setSelectedRouteId(results[0]?.id ?? null)
       setRouteStatus('success')
     } catch (err: unknown) {
+      if (controller.signal.aborted || activeRequestRef.current !== controller) {
+        return
+      }
       if (err instanceof DOMException && err.name === 'AbortError') {
         // Request cancelled by user action, ignore
         return
