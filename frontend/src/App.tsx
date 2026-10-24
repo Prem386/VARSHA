@@ -1,5 +1,6 @@
 import type { FC } from 'react'
 import MapView from './features/map/MapView'
+import WeatherAlertsCard from './features/weather/WeatherAlertsCard'
 import './App.css'
 
 const App: FC = () => {
@@ -44,6 +45,9 @@ const App: FC = () => {
             </div>
           </div>
         </section>
+
+        {/* Live Weather & Official Alerts Dashboard Card */}
+        <WeatherAlertsCard />
 
         {/* Map Section */}
         <section className="map-placeholder-section" aria-labelledby="map-section-heading">

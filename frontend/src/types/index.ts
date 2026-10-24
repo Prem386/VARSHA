@@ -135,3 +135,112 @@ export interface RouteRiskAssessment {
   result?: RouteRiskScoreResult
   error?: string
 }
+
+// -------------------------------------------------------------
+// Official Weather & Alert Integration Types (Open-Meteo & NDMA SACHET)
+// -------------------------------------------------------------
+
+export interface RainfallProviderStatus {
+  provider: string
+  status: 'ok' | 'degraded' | 'unavailable' | string
+  is_cached: boolean
+  is_stale: boolean
+  retrieved_at: string | null
+  error_message: string | null
+  endpoint_url: string
+}
+
+export interface CurrentRainfall {
+  timestamp: string
+  interval_seconds: number
+  precipitation_mm: number | null
+  unit: string
+  is_model_derived: boolean
+  is_physical_observation: boolean
+  interval_description: string
+}
+
+export interface PrecipitationStep {
+  timestamp: string
+  precipitation_mm: number | null
+  precipitation_probability_pct: number | null
+  interval_minutes: number
+  unit: string
+  is_model_derived: boolean
+}
+
+export interface RainfallSummary {
+  forecast_hours: number
+  total_precipitation_mm: number | null
+  max_hourly_precipitation_mm: number | null
+  max_probability_pct: number | null
+}
+
+export interface RainfallResponse {
+  provider: RainfallProviderStatus
+  requested_coordinate: { latitude: number; longitude: number }
+  data_type: string
+  is_model_derived: boolean
+  is_physical_observation: boolean
+  current?: CurrentRainfall | null
+  hourly: PrecipitationStep[]
+  summary?: RainfallSummary | null
+  caveats: string[]
+}
+
+export interface AlertProviderStatus {
+  provider: string
+  status: 'ok' | 'degraded' | 'unavailable' | string
+  is_cached: boolean
+  is_stale: boolean
+  retrieved_at: string | null
+  error_message: string | null
+  feed_url: string
+}
+
+export interface AlertGeocode {
+  value_name: string
+  value: string
+}
+
+export interface NormalizedAlert {
+  provider: string
+  identifier: string
+  sender: string
+  sent?: string | null
+  status: string
+  msg_type: string
+  references?: string | null
+  category?: string | null
+  event?: string | null
+  headline?: string | null
+  description?: string | null
+  instruction?: string | null
+  severity: string
+  urgency: string
+  certainty: string
+  is_active: boolean
+  effective?: string | null
+  onset?: string | null
+  expires?: string | null
+  retrieved_at: string
+  language?: string | null
+  alternate_languages: string[]
+  area_description?: string | null
+  geocodes: AlertGeocode[]
+  geometry_type: string
+  coordinates?: { latitude: number; longitude: number }[] | null
+  has_spatial_geometry: boolean
+  raw_severity?: string | null
+  raw_urgency?: string | null
+  raw_certainty?: string | null
+  warnings: string[]
+}
+
+export interface AlertListResponse {
+  provider: AlertProviderStatus
+  total: number
+  alerts: NormalizedAlert[]
+  spatial_filter_applied: boolean
+  spatial_filter_note?: string | null
+}
