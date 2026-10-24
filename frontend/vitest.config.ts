@@ -7,6 +7,6 @@ export default defineConfig({
   test: {
     environment: 'happy-dom',
     globals: true,
-    include: ['tests/components/**/*.test.tsx'],
+    include: ['tests/components/**/*.test.tsx', 'tests/integration/**/*.test.tsx'],
   },
 })
