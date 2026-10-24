@@ -1,5 +1,8 @@
 .varsha-app {
+  width: 100%;
   max-width: 1040px;
+  min-width: 0;
+  box-sizing: border-box;
   margin: 0 auto;
   padding: 2.5rem 1.5rem;
   display: flex;
@@ -349,7 +352,10 @@
 
 @media (max-width: 640px) {
   .varsha-app {
-    padding: 1.5rem 1rem;
+    padding: 1.25rem 0.75rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   .project-title {
@@ -357,19 +363,57 @@
   }
 
   .project-subtitle {
-    font-size: 1rem;
+    font-size: 0.95rem;
   }
 
   .hero-card {
-    padding: 1.5rem;
+    padding: 1.25rem 1rem;
   }
 
   .hero-heading {
     font-size: 1.35rem;
   }
 
+  .hero-description {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin-bottom: 1.25rem;
+  }
+
+  .status-notice {
+    padding: 0.85rem 1rem;
+    font-size: 0.85rem;
+  }
+
+  .map-placeholder-section {
+    padding: 1rem 0.75rem;
+  }
+
+  .section-title {
+    font-size: 1.15rem;
+  }
+
+  .section-subtitle {
+    font-size: 0.8rem;
+  }
+
+  .phase-indicator {
+    font-size: 0.7rem;
+    align-self: flex-start;
+  }
+
   .map-canvas-placeholder {
-    min-height: 260px;
-    padding: 1.5rem 1rem;
+    min-height: 240px;
+    padding: 1.25rem 0.75rem;
+  }
+
+  .info-card {
+    padding: 1.25rem 1rem;
+  }
+
+  .varsha-footer {
+    margin-top: 2.5rem;
+    padding-top: 1.25rem;
+    font-size: 0.8rem;
   }
 }

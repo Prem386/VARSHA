@@ -513,15 +513,54 @@
 
 @media (max-width: 600px) {
   .weather-alerts-card {
-    padding: 1.25rem;
+    padding: 1rem 0.75rem;
+  }
+
+  .weather-card-header {
+    gap: 0.75rem;
   }
 
   .weather-card-title {
     font-size: 1.15rem;
   }
 
+  .weather-card-subtitle {
+    font-size: 0.8rem;
+    line-height: 1.35;
+  }
+
+  .weather-refresh-button {
+    width: 100%;
+    justify-content: center;
+    min-height: 42px;
+  }
+
+  .weather-section,
+  .alerts-section {
+    padding: 1rem 0.75rem;
+  }
+
+  .current-rainfall-box {
+    padding: 0.85rem;
+  }
+
+  .rainfall-value {
+    font-size: 1.6rem;
+  }
+
   .summary-metrics-grid {
     grid-template-columns: 1fr;
     gap: 0.5rem;
+  }
+
+  .alert-item {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .alert-details-toggle {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 0;
   }
 }

@@ -1556,110 +1556,6 @@
   box-shadow: 0 0 5px rgba(6, 182, 212, 0.6);
 }
 
-/* Responsive adjustments */
-@media (max-width: 640px) {
-  .route-endpoints-grid {
-    grid-template-columns: 1fr;
-    gap: 0.6rem;
-  }
-
-  .route-metrics-grid,
-  .route-options-grid {
-    grid-template-columns: 1fr;
-    gap: 0.5rem;
-  }
-
-  .route-summary-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-
-  .btn-clear-route {
-    align-self: flex-start;
-  }
-
-  .swap-button-wrapper {
-    justify-content: center;
-  }
-
-  .btn-swap-endpoints {
-    transform: rotate(90deg);
-  }
-
-  .btn-swap-endpoints:hover:not(:disabled) {
-    transform: rotate(270deg);
-  }
-
-  .route-planning-footer {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .btn-plan-route {
-    justify-content: center;
-  }
-
-  .varsha-leaflet-container {
-    height: 340px;
-  }
-
-  .map-legend-bar {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.6rem;
-  }
-
-  .legend-items {
-    gap: 0.75rem;
-  }
-
-  /* Mobile risk card adjustments for 375px viewports */
-  .route-risk-block {
-    padding: 0.55rem;
-    box-sizing: border-box;
-    width: 100%;
-  }
-
-  .risk-header-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.35rem;
-  }
-
-  .risk-badge-container {
-    align-items: flex-start;
-  }
-
-  .route-option-card {
-    min-width: 0;
-    max-width: 100%;
-    box-sizing: border-box;
-  }
-
-  .contribution-top {
-    flex-wrap: wrap;
-    gap: 0.25rem;
-  }
-
-  .contribution-name {
-    word-break: break-word;
-  }
-
-  .contribution-desc {
-    word-break: break-word;
-  }
-
-  .disclaimer-primary,
-  .disclaimer-engine {
-    word-break: break-word;
-  }
-
-  .scenario-options-group {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
 /* ==========================================================================
    Demo Scenario Selector & Synthetic Notice Banner
    ========================================================================== */
@@ -1727,6 +1623,8 @@
   border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: var(--radius-sm);
   padding: 0.45rem 0.4rem;
+  min-height: 42px;
+  min-width: 0;
   color: var(--text-secondary);
   cursor: pointer;
   font-size: 0.78rem;
@@ -1736,6 +1634,7 @@
   justify-content: center;
   gap: 0.35rem;
   transition: all 0.15s ease;
+  text-align: center;
 }
 
 .scenario-option-btn:hover {
@@ -1757,6 +1656,7 @@
   border-radius: 50%;
   background-color: var(--text-muted);
   transition: background-color 0.15s ease;
+  flex-shrink: 0;
 }
 
 .scenario-btn-selected .scenario-btn-dot {
@@ -1768,6 +1668,8 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
+  line-height: 1.25;
 }
 
 .scenario-description-note {
@@ -1813,5 +1715,149 @@
   color: #fde68a;
   margin: 0;
   line-height: 1.35;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .route-selector-container {
+    padding: 1rem 0.75rem;
+    gap: 0.85rem;
+  }
+
+  .route-endpoints-grid {
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+  }
+
+  .route-metrics-grid,
+  .route-options-grid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .route-summary-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .btn-clear-route {
+    align-self: flex-start;
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .swap-button-wrapper {
+    justify-content: center;
+    margin: 0.15rem 0;
+  }
+
+  .btn-swap-endpoints {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    transform: rotate(90deg);
+  }
+
+  .btn-swap-endpoints:hover:not(:disabled) {
+    transform: rotate(270deg);
+  }
+
+  .route-planning-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .btn-plan-route {
+    justify-content: center;
+    width: 100%;
+    min-height: 44px;
+    font-size: 0.95rem;
+  }
+
+  .btn-retry-route {
+    width: 100%;
+    justify-content: center;
+    min-height: 40px;
+  }
+
+  .btn-select-route-action {
+    min-height: 38px;
+  }
+
+  .risk-details-summary {
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+  }
+
+  .varsha-leaflet-container {
+    height: 320px;
+  }
+
+  .map-legend-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.6rem;
+  }
+
+  .legend-items {
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  /* Mobile risk card adjustments for 375px viewports */
+  .route-risk-block {
+    padding: 0.55rem;
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  .risk-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+
+  .risk-badge-container {
+    align-items: flex-start;
+  }
+
+  .route-option-card {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .contribution-top {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  .contribution-name {
+    word-break: break-word;
+  }
+
+  .contribution-desc {
+    word-break: break-word;
+  }
+
+  .disclaimer-primary,
+  .disclaimer-engine {
+    word-break: break-word;
+  }
+
+  .scenario-options-group {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.45rem;
+  }
+
+  .scenario-option-btn {
+    padding: 0.5rem 0.35rem;
+    font-size: 0.74rem;
+  }
 }
 
