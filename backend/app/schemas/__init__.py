@@ -9,6 +9,7 @@ from app.schemas.rainfall import (
     RainfallResponse,
     RainfallSummary,
 )
+from app.schemas.places import PlaceSearchResult, PlaceSearchResponse
 
 __all__ = [
     "Coordinate",
@@ -24,4 +25,6 @@ __all__ = [
     "RainfallProviderStatus",
     "RainfallResponse",
     "RainfallSummary",
+    "PlaceSearchResult",
+    "PlaceSearchResponse",
 ]

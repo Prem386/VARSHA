@@ -1,8 +1,13 @@
 """Application configuration and environment settings."""
 import json
-from typing import List, Union
+from pathlib import Path
+from typing import List, Optional, Union
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_CONFIG_DIR = Path(__file__).resolve().parent
+_BACKEND_DIR = _CONFIG_DIR.parent.parent
+_ROOT_DIR = _BACKEND_DIR.parent
 
 
 class Settings(BaseSettings):
@@ -32,6 +37,16 @@ class Settings(BaseSettings):
     OPEN_METEO_CACHE_TTL_SECONDS: int = 900
     OPEN_METEO_MAX_FORECAST_HOURS: int = 72
 
+    # Geoapify place search settings
+    GEOAPIFY_API_KEY: Optional[str] = None
+    GEOAPIFY_BASE_URL: str = "https://api.geoapify.com/v1/geocode/autocomplete"
+    GEOAPIFY_REQUEST_TIMEOUT_SECONDS: float = 8.0
+    GEOAPIFY_CACHE_TTL_SECONDS: int = 300
+    GEOAPIFY_DEFAULT_LIMIT: int = 5
+    GEOAPIFY_MAX_LIMIT: int = 20
+    GEOAPIFY_BIAS_PROXIMITY: Optional[str] = "73.0297,19.0330"  # [lon, lat] Navi Mumbai proximity bias
+    GEOAPIFY_COUNTRY_FILTER: Optional[str] = "in"  # Country restriction (India), optional
+
     @field_validator("CORS_ORIGINS", mode="after")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
@@ -48,7 +63,11 @@ class Settings(BaseSettings):
         return [str(item).strip() for item in v if item]
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=[
+            str(_BACKEND_DIR / ".env"),
+            str(_ROOT_DIR / ".env"),
+            ".env",
+        ],
         env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore",

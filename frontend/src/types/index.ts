@@ -35,7 +35,32 @@ export interface SelectedLocation {
   label: string
   coordinates: [number, number] // [lat, lng]
   landmarkId?: string
+  placeId?: string
+  formattedAddress?: string
+  source?: 'geoapify' | 'curated' | 'map'
+  category?: string
+  locality?: string
 }
+
+export interface PlaceSuggestion {
+  id: string
+  name: string
+  formatted_address: string
+  latitude: number
+  longitude: number
+  source: string // 'geoapify' | 'curated'
+  category?: string | null
+  locality?: string | null
+}
+
+export interface PlaceSearchResponse {
+  query: string
+  total: number
+  results: PlaceSuggestion[]
+  source: string
+  cached: boolean
+}
+
 
 export interface RoadRoute {
   id: string

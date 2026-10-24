@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.routes import health, alerts, rainfall
+from app.api.routes import health, alerts, rainfall, places
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -29,3 +29,4 @@ if settings.CORS_ORIGINS:
 app.include_router(health.router, prefix=settings.API_V1_STR)
 app.include_router(alerts.router, prefix=settings.API_V1_STR)
 app.include_router(rainfall.router, prefix=settings.API_V1_STR)
+app.include_router(places.router, prefix=settings.API_V1_STR)

@@ -1,8 +1,9 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { FC, KeyboardEvent } from 'react'
-import type { RouteEndpointType, SelectedLocation } from '../../types'
+import type { PlaceSuggestion, RouteEndpointType, SelectedLocation } from '../../types'
 import { POPULAR_LANDMARKS, searchLandmarks } from './landmarks'
 import type { Landmark } from './landmarks'
+import { searchPlaces } from './placesService'
 import './PlaceSearchInput.css'
 
 export interface PlaceSearchInputProps {
@@ -18,12 +19,25 @@ export interface PlaceSearchInputProps {
   onActivateTarget: () => void
 }
 
+function landmarkToSuggestion(landmark: Landmark): PlaceSuggestion {
+  return {
+    id: landmark.id,
+    name: landmark.name,
+    formatted_address: `${landmark.locality} • ${landmark.category}`,
+    latitude: landmark.coordinates[0],
+    longitude: landmark.coordinates[1],
+    source: 'curated',
+    category: landmark.category,
+    locality: landmark.locality,
+  }
+}
+
 export const PlaceSearchInput: FC<PlaceSearchInputProps> = ({
   id,
   endpointType,
   label,
   tagLetter,
-  placeholder = 'Search landmark or click map...',
+  placeholder = 'Search place, address or click map...',
   value,
   onSelect,
   onClear,
@@ -35,25 +49,34 @@ export const PlaceSearchInput: FC<PlaceSearchInputProps> = ({
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
   const [isFocused, setIsFocused] = useState(false)
 
+  // Remote Geoapify search state
+  const [isLoading, setIsLoading] = useState(false)
+  const [remoteResults, setRemoteResults] = useState<PlaceSuggestion[]>([])
+  const [remoteError, setRemoteError] = useState<string | null>(null)
+  const [fallbackResults, setFallbackResults] = useState<PlaceSuggestion[]>([])
+
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const activeAbortRef = useRef<AbortController | null>(null)
+  const requestIdRef = useRef(0)
   const listboxId = useId()
 
   // Sync displayed query text when external value changes (e.g. map click, swap, clear)
   useEffect(() => {
     setQuery(value ? value.label : '')
+    setRemoteResults([])
+    setRemoteError(null)
+    setFallbackResults([])
   }, [value])
 
-  // Compute suggestions based on query
-  const trimmedQuery = query.trim()
-  const isSearchActive = trimmedQuery.length > 0 && (!value || value.label !== query)
-  const suggestions = isSearchActive
-    ? searchLandmarks(trimmedQuery, 6)
-    : isFocused && !value
-    ? [...POPULAR_LANDMARKS]
-    : []
-
-  const showDropdown = isOpen && (suggestions.length > 0 || (isSearchActive && suggestions.length === 0))
+  // Cleanup in-flight requests on unmount
+  useEffect(() => {
+    return () => {
+      if (activeAbortRef.current) {
+        activeAbortRef.current.abort()
+      }
+    }
+  }, [])
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -69,13 +92,108 @@ export const PlaceSearchInput: FC<PlaceSearchInputProps> = ({
     }
   }, [])
 
-  const handleSelectLandmark = (landmark: Landmark) => {
+  const trimmedQuery = query.trim()
+  const isSearchActive = trimmedQuery.length >= 2 && (!value || value.label !== query)
+
+  // Debounced place search against backend Geoapify proxy
+  useEffect(() => {
+    if (!isSearchActive) {
+      setIsLoading(false)
+      setRemoteResults([])
+      setRemoteError(null)
+      setFallbackResults([])
+      if (activeAbortRef.current) {
+        activeAbortRef.current.abort()
+        activeAbortRef.current = null
+      }
+      return
+    }
+
+    // Cancel prior in-flight request
+    if (activeAbortRef.current) {
+      activeAbortRef.current.abort()
+    }
+
+    const currentRequestId = ++requestIdRef.current
+    const controller = new AbortController()
+    activeAbortRef.current = controller
+
+    setIsLoading(true)
+    setRemoteError(null)
+    setFallbackResults([])
+
+    const timer = setTimeout(async () => {
+      try {
+        const response = await searchPlaces(trimmedQuery, {
+          limit: 5,
+          signal: controller.signal,
+        })
+
+        // Guard against stale responses overwriting newer search results
+        if (requestIdRef.current === currentRequestId) {
+          setRemoteResults(response.results)
+          setRemoteError(null)
+          setFallbackResults([])
+          setIsLoading(false)
+        }
+      } catch (err: unknown) {
+        if (controller.signal.aborted) {
+          return
+        }
+
+        if (requestIdRef.current === currentRequestId) {
+          const errMsg = err instanceof Error ? err.message : 'Remote place search unavailable.'
+          setRemoteError(errMsg)
+          setRemoteResults([])
+
+          // Fallback to locally curated landmarks when remote service fails
+          const matchingLandmarks = searchLandmarks(trimmedQuery, 4)
+          setFallbackResults(matchingLandmarks.map(landmarkToSuggestion))
+          setIsLoading(false)
+        }
+      }
+    }, 350)
+
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
+  }, [trimmedQuery, isSearchActive])
+
+  // Determine active suggestions to display
+  let displayedSuggestions: PlaceSuggestion[] = []
+  let isCuratedFallback = false
+
+  if (isSearchActive) {
+    if (remoteResults.length > 0) {
+      displayedSuggestions = remoteResults
+    } else if (remoteError && fallbackResults.length > 0) {
+      displayedSuggestions = fallbackResults
+      isCuratedFallback = true
+    }
+  } else if (isFocused && !value && trimmedQuery.length === 0) {
+    displayedSuggestions = POPULAR_LANDMARKS.map(landmarkToSuggestion)
+    isCuratedFallback = true
+  }
+
+  const showDropdown =
+    isOpen &&
+    (isLoading ||
+      displayedSuggestions.length > 0 ||
+      (isSearchActive && !isLoading && remoteResults.length === 0))
+
+  const handleSelectPlace = (place: PlaceSuggestion) => {
     onSelect({
-      label: landmark.name,
-      coordinates: landmark.coordinates,
-      landmarkId: landmark.id,
+      label: place.name,
+      coordinates: [place.latitude, place.longitude],
+      placeId: place.id,
+      formattedAddress: place.formatted_address,
+      source: place.source === 'curated' ? 'curated' : 'geoapify',
+      category: place.category || undefined,
+      locality: place.locality || undefined,
+      landmarkId: place.source === 'curated' ? place.id : undefined,
     })
-    setQuery(landmark.name)
+    setQuery(place.name)
     setIsOpen(false)
     setHighlightedIndex(-1)
     inputRef.current?.blur()
@@ -92,6 +210,9 @@ export const PlaceSearchInput: FC<PlaceSearchInputProps> = ({
     onClear()
     setIsOpen(false)
     setHighlightedIndex(-1)
+    setRemoteResults([])
+    setRemoteError(null)
+    setFallbackResults([])
     inputRef.current?.focus()
   }
 
@@ -108,21 +229,21 @@ export const PlaceSearchInput: FC<PlaceSearchInputProps> = ({
       case 'ArrowDown':
         e.preventDefault()
         setHighlightedIndex((prev) =>
-          prev < suggestions.length - 1 ? prev + 1 : 0
+          prev < displayedSuggestions.length - 1 ? prev + 1 : 0
         )
         break
       case 'ArrowUp':
         e.preventDefault()
         setHighlightedIndex((prev) =>
-          prev > 0 ? prev - 1 : suggestions.length - 1
+          prev > 0 ? prev - 1 : displayedSuggestions.length - 1
         )
         break
       case 'Enter':
         e.preventDefault()
-        if (highlightedIndex >= 0 && suggestions[highlightedIndex]) {
-          handleSelectLandmark(suggestions[highlightedIndex])
-        } else if (suggestions.length === 1) {
-          handleSelectLandmark(suggestions[0])
+        if (highlightedIndex >= 0 && displayedSuggestions[highlightedIndex]) {
+          handleSelectPlace(displayedSuggestions[highlightedIndex])
+        } else if (displayedSuggestions.length === 1) {
+          handleSelectPlace(displayedSuggestions[0])
         }
         break
       case 'Escape':
@@ -191,6 +312,10 @@ export const PlaceSearchInput: FC<PlaceSearchInputProps> = ({
             spellCheck="false"
           />
 
+          {isLoading && (
+            <span className="search-loading-spinner" aria-label="Loading search results" />
+          )}
+
           {(value || query) && (
             <button
               type="button"
@@ -207,41 +332,105 @@ export const PlaceSearchInput: FC<PlaceSearchInputProps> = ({
         {/* Suggestion Dropdown */}
         {showDropdown && (
           <div id={listboxId} className="search-suggestions-dropdown" role="listbox">
-            {suggestions.length > 0 ? (
+            {isLoading ? (
+              <div className="suggestion-status-notice">
+                <span className="status-spinner-small" aria-hidden="true" />
+                <span>Searching places via Geoapify...</span>
+              </div>
+            ) : displayedSuggestions.length > 0 ? (
               <>
+                {/* Section headers distinguishing sources */}
                 {!isSearchActive && (
                   <div className="dropdown-section-label">Popular Navi Mumbai Transit Hubs</div>
                 )}
-                {suggestions.map((landmark, index) => {
+                {isSearchActive && isCuratedFallback && (
+                  <div className="dropdown-section-label label-fallback">
+                    Curated Local Landmarks (Fallback)
+                  </div>
+                )}
+                {isSearchActive && !isCuratedFallback && (
+                  <div className="dropdown-section-label label-provider">
+                    Search Results (Geoapify)
+                  </div>
+                )}
+
+                {displayedSuggestions.map((place, index) => {
                   const isHighlighted = index === highlightedIndex
                   return (
                     <div
-                      key={landmark.id}
+                      key={place.id || `${place.latitude}-${place.longitude}-${index}`}
                       className={`suggestion-item ${isHighlighted ? 'suggestion-highlighted' : ''}`}
                       role="option"
                       aria-selected={isHighlighted}
                       onMouseDown={(e) => {
-                        // Prevent input blur before click registers
                         e.preventDefault()
-                        handleSelectLandmark(landmark)
+                        handleSelectPlace(place)
                       }}
                       onMouseEnter={() => setHighlightedIndex(index)}
                     >
-                      <div className="suggestion-icon" aria-hidden="true">📍</div>
+                      <div className="suggestion-icon" aria-hidden="true">
+                        {place.source === 'curated' ? '🏛️' : '📍'}
+                      </div>
                       <div className="suggestion-info">
-                        <span className="suggestion-name">{landmark.name}</span>
+                        <div className="suggestion-title-row">
+                          <span className="suggestion-name">{place.name}</span>
+                          <span
+                            className={`suggestion-source-badge ${
+                              place.source === 'curated' ? 'badge-curated' : 'badge-geoapify'
+                            }`}
+                          >
+                            {place.source === 'curated' ? 'Curated Fallback' : 'Geoapify'}
+                          </span>
+                        </div>
                         <span className="suggestion-meta">
-                          {landmark.locality} &bull; {landmark.category}
+                          {place.formatted_address || place.locality || ''}
                         </span>
                       </div>
                     </div>
                   )
                 })}
+
+                {/* Attribution link required by Geoapify */}
+                <div className="dropdown-attribution">
+                  <span>Search powered by </span>
+                  <a
+                    href="https://www.geoapify.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="attribution-link"
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    Geoapify
+                  </a>
+                  <span> | © </span>
+                  <a
+                    href="https://www.openstreetmap.org/copyright"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="attribution-link"
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    OpenStreetMap
+                  </a>
+                  <span> contributors</span>
+                </div>
               </>
+            ) : remoteError ? (
+              <div className="suggestion-empty-state state-error">
+                <span className="empty-state-title">⚠️ Remote Search Unavailable</span>
+                <span className="empty-state-desc">{remoteError}</span>
+                <span className="empty-state-hint">
+                  No matching curated landmarks found. Click anywhere on the map to pin coordinates directly.
+                </span>
+              </div>
             ) : (
               <div className="suggestion-empty-state">
-                <span>No landmarks matching &ldquo;{trimmedQuery}&rdquo;</span>
-                <span className="empty-state-hint">Click anywhere on the map to pin coordinates.</span>
+                <span className="empty-state-title">
+                  No places matching &ldquo;{trimmedQuery}&rdquo;
+                </span>
+                <span className="empty-state-hint">
+                  Provider returned no matching results. Click anywhere on the map to pin coordinates directly.
+                </span>
               </div>
             )}
           </div>
@@ -253,7 +442,13 @@ export const PlaceSearchInput: FC<PlaceSearchInputProps> = ({
         {value ? (
           <div className="selected-meta">
             <span className="meta-coords">{formatCoords(value.coordinates)}</span>
-            {value.landmarkId && <span className="meta-tag">Verified Landmark</span>}
+            {value.source === 'geoapify' ? (
+              <span className="meta-tag meta-tag-geoapify">Geoapify Place</span>
+            ) : value.source === 'curated' || value.landmarkId ? (
+              <span className="meta-tag meta-tag-curated">Curated Landmark</span>
+            ) : (
+              <span className="meta-tag meta-tag-map">Pinned Map Coordinate</span>
+            )}
           </div>
         ) : (
           <span className="search-hint-text">
