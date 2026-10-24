@@ -9,6 +9,8 @@ import type {
 } from '../../types'
 import { formatDistance, formatDuration } from '../routing/osrmService'
 import PlaceSearchInput from '../search/PlaceSearchInput'
+import ScenarioSelector from '../scenarios/ScenarioSelector.tsx'
+import type { DemoScenarioId } from '../scenarios/scenarios.ts'
 
 interface RouteSelectorProps {
   origin: SelectedLocation | null
@@ -28,6 +30,8 @@ interface RouteSelectorProps {
   onPlanRoute: () => void
   onClearRoute: () => void
   riskAssessments?: Record<string, RouteRiskAssessment>
+  selectedScenarioId?: DemoScenarioId
+  onSelectScenario?: (id: DemoScenarioId) => void
 }
 
 const getRiskCategoryClass = (category?: RouteRiskCategory): string => {
@@ -182,6 +186,8 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
   onPlanRoute,
   onClearRoute,
   riskAssessments,
+  selectedScenarioId = 'baseline',
+  onSelectScenario = () => {},
 }) => {
   const selectedRoute =
     routes.find((r) => r.id === selectedRouteId) ?? routes[0] ?? null
@@ -243,6 +249,12 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
           onActivateTarget={() => onSelectTarget('destination')}
         />
       </div>
+
+      {/* Demo Scenario Selector for differential risk testing */}
+      <ScenarioSelector
+        selectedScenarioId={selectedScenarioId}
+        onSelectScenario={onSelectScenario}
+      />
 
       {/* Validation and Status Feedback */}
       {isIdentical && (

@@ -5,7 +5,8 @@ import 'leaflet/dist/leaflet.css'
 import HazardMarkers from './HazardMarkers'
 import RouteEndpointMarkers from './RouteEndpointMarkers'
 import RouteSelector from './RouteSelector'
-import { SIMULATED_HAZARDS } from './hazardData.ts'
+import { DEFAULT_SCENARIO_ID, getDemoScenario } from '../scenarios/scenarios.ts'
+import type { DemoScenarioId } from '../scenarios/scenarios.ts'
 import { fetchRoadRoutes } from '../routing/osrmService'
 import { assessRoutesRisk } from '../routing/routeRiskAssessment.ts'
 import type { RoadRoute, RouteEndpointType, RouteStatus, SelectedLocation } from '../../types'
@@ -20,6 +21,9 @@ export const MapView: FC = () => {
   const [destination, setDestination] = useState<SelectedLocation | null>(null)
   const [activeTarget, setActiveTarget] = useState<RouteEndpointType>('origin')
 
+  // Demo scenario state for differential risk comparison
+  const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(DEFAULT_SCENARIO_ID)
+
   // Routing state
   const [routes, setRoutes] = useState<RoadRoute[]>([])
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null)
@@ -32,10 +36,13 @@ export const MapView: FC = () => {
   const selectedRoute =
     routes.find((r) => r.id === selectedRouteId) ?? routes[0] ?? null
 
-  // Memoized prototype risk assessment for each route; re-evaluates only when routes change
+  const activeScenario = getDemoScenario(selectedScenarioId)
+  const currentHazards = activeScenario.hazards
+
+  // Memoized prototype risk assessment for each route; re-evaluates when routes or scenario hazards change
   const riskAssessments = useMemo(() => {
-    return assessRoutesRisk(routes, SIMULATED_HAZARDS)
-  }, [routes])
+    return assessRoutesRisk(routes, currentHazards)
+  }, [routes, currentHazards])
 
   // Check if both points exist and have identical coordinates
   const isIdentical = Boolean(
@@ -177,6 +184,8 @@ export const MapView: FC = () => {
         onPlanRoute={handlePlanRoute}
         onClearRoute={clearExistingRoute}
         riskAssessments={riskAssessments}
+        selectedScenarioId={selectedScenarioId}
+        onSelectScenario={setSelectedScenarioId}
       />
 
       {/* Interactive Map with Route Polylines, Hazards and Endpoints */}
@@ -229,7 +238,7 @@ export const MapView: FC = () => {
           />
         )}
 
-        <HazardMarkers />
+        <HazardMarkers hazards={currentHazards} />
         <RouteEndpointMarkers
           origin={origin}
           destination={destination}
