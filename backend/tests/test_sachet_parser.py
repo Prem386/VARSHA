@@ -46,10 +46,13 @@ def test_parse_sachet_rss_empty_string() -> None:
     assert parse_sachet_rss("   ") == []
 
 
+FIXED_RETRIEVAL_TIME = datetime(2026, 10, 23, 16, 0, 0, tzinfo=timezone.utc)
+
+
 def test_parse_cap_xml_standard() -> None:
     """Test standard CAP 1.2 XML parsing with namespace and LGD geocode."""
     xml_content = _read_fixture("cap_alert_sample.xml")
-    alert = parse_cap_xml(xml_content)
+    alert = parse_cap_xml(xml_content, retrieval_time=FIXED_RETRIEVAL_TIME)
 
     assert alert.identifier == "TEST-ALERT-001"
     assert alert.sender == "in-imd-rsmc-newdelhi"
@@ -95,7 +98,7 @@ def test_parse_cap_xml_cancellation() -> None:
 def test_parse_cap_xml_update() -> None:
     """Test CAP Update message updates severity and preserves references."""
     xml_content = _read_fixture("cap_update.xml")
-    alert = parse_cap_xml(xml_content)
+    alert = parse_cap_xml(xml_content, retrieval_time=FIXED_RETRIEVAL_TIME)
 
     assert alert.msg_type == "Update"
     assert alert.severity == "Extreme"
@@ -107,11 +110,11 @@ def test_parse_cap_xml_update() -> None:
 def test_parse_cap_xml_expired() -> None:
     """Test alert past expiration date is marked is_active=False."""
     xml_content = _read_fixture("cap_expired.xml")
-    alert = parse_cap_xml(xml_content)
+    alert = parse_cap_xml(xml_content, retrieval_time=FIXED_RETRIEVAL_TIME)
 
     assert alert.is_active is False
     assert alert.expires is not None
-    assert alert.expires < datetime.now(timezone.utc)
+    assert alert.expires < FIXED_RETRIEVAL_TIME
 
 
 def test_parse_cap_xml_polygon() -> None:

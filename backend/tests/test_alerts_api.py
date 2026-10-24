@@ -10,11 +10,16 @@ from app.schemas.alerts import AlertListResponse, NormalizedAlert, ProviderStatu
 from app.services.alerts.sachet import parse_cap_xml, sachet_provider
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "sachet"
+FIXED_NOW = datetime(2026, 10, 23, 16, 0, 0, tzinfo=timezone.utc)
 
 
 def _read_fixture(filename: str) -> str:
     path = FIXTURES_DIR / filename
     return path.read_text(encoding="utf-8")
+
+
+def _load_alert(filename: str, retrieval_time: datetime = FIXED_NOW) -> NormalizedAlert:
+    return parse_cap_xml(_read_fixture(filename), retrieval_time=retrieval_time)
 
 
 @pytest.fixture(autouse=True)
@@ -32,8 +37,8 @@ def client() -> TestClient:
 
 def test_get_alerts_success_with_alerts(client: TestClient) -> None:
     """State 1: Provider OK with alerts returned."""
-    alert1 = parse_cap_xml(_read_fixture("cap_alert_sample.xml"))
-    alert2 = parse_cap_xml(_read_fixture("cap_with_polygon.xml"))
+    alert1 = _load_alert("cap_alert_sample.xml")
+    alert2 = _load_alert("cap_with_polygon.xml")
 
     mock_status = ProviderStatus(
         provider="ndma_sachet",
@@ -91,7 +96,7 @@ def test_get_alerts_success_zero_alerts(client: TestClient) -> None:
 
 def test_get_alerts_stale_cache_fallback(client: TestClient) -> None:
     """State 3: Provider degraded with stale cached data."""
-    alert1 = parse_cap_xml(_read_fixture("cap_alert_sample.xml"))
+    alert1 = _load_alert("cap_alert_sample.xml")
     cached_time = datetime(2026, 10, 23, 10, 0, 0, tzinfo=timezone.utc)
 
     mock_status = ProviderStatus(
@@ -149,9 +154,9 @@ def test_get_alerts_provider_unavailable_cold_start(client: TestClient) -> None:
 
 def test_get_alerts_active_only_filter(client: TestClient) -> None:
     """Test active_only query parameter excludes inactive/cancelled alerts."""
-    active_alert = parse_cap_xml(_read_fixture("cap_alert_sample.xml"))
-    cancelled_alert = parse_cap_xml(_read_fixture("cap_cancelled.xml"))
-    expired_alert = parse_cap_xml(_read_fixture("cap_expired.xml"))
+    active_alert = _load_alert("cap_alert_sample.xml")
+    cancelled_alert = _load_alert("cap_cancelled.xml")
+    expired_alert = _load_alert("cap_expired.xml")
 
     all_alerts = [active_alert, cancelled_alert, expired_alert]
 
@@ -182,8 +187,8 @@ def test_get_alerts_active_only_filter(client: TestClient) -> None:
 
 def test_get_alerts_bbox_filter(client: TestClient) -> None:
     """Test spatial bounding box filter applies only to verified polygon geometry."""
-    poly_alert = parse_cap_xml(_read_fixture("cap_with_polygon.xml"))
-    unresolved_alert = parse_cap_xml(_read_fixture("cap_alert_sample.xml"))
+    poly_alert = _load_alert("cap_with_polygon.xml")
+    unresolved_alert = _load_alert("cap_alert_sample.xml")
 
     mock_status = ProviderStatus(
         provider="ndma_sachet",
