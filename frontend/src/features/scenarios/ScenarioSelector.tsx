@@ -1,6 +1,7 @@
 import type { FC } from 'react'
 import type { DemoScenarioId } from './scenarios.ts'
 import { getAllDemoScenarios, getDemoScenario } from './scenarios.ts'
+import { IconAlert } from '../../components/Icons'
 
 interface ScenarioSelectorProps {
   selectedScenarioId: DemoScenarioId
@@ -65,7 +66,9 @@ export const ScenarioSelector: FC<ScenarioSelectorProps> = ({
       {/* Prominent warning notice displayed whenever a non-baseline scenario is active */}
       {isNonBaseline && (
         <div className="scenario-warning-notice" role="status">
-          <span className="warning-notice-icon" aria-hidden="true">⚠️</span>
+          <span className="warning-notice-icon" aria-hidden="true">
+            <IconAlert size={16} />
+          </span>
           <div className="warning-notice-content">
             <strong className="warning-notice-heading">
               DEMO SCENARIO ACTIVE — SYNTHETIC HAZARDS, NOT LIVE CONDITIONS

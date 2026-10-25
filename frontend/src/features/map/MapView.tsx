@@ -10,6 +10,7 @@ import type { DemoScenarioId } from '../scenarios/scenarios.ts'
 import { fetchRoadRoutes } from '../routing/osrmService'
 import { assessRoutesRisk } from '../routing/routeRiskAssessment.ts'
 import type { RoadRoute, RouteEndpointType, RouteStatus, SelectedLocation } from '../../types'
+import { IconChevron } from '../../components/Icons'
 import './MapView.css'
 
 // ponytail: default to central Navi Mumbai coordinates; props deferred until multiple pilot areas exist
@@ -20,6 +21,7 @@ export const MapView: FC = () => {
   const [origin, setOrigin] = useState<SelectedLocation | null>(null)
   const [destination, setDestination] = useState<SelectedLocation | null>(null)
   const [activeTarget, setActiveTarget] = useState<RouteEndpointType>('origin')
+  const [isLegendOpen, setIsLegendOpen] = useState<boolean>(true)
 
   // Demo scenario state for differential risk comparison
   const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(DEFAULT_SCENARIO_ID)
@@ -252,50 +254,69 @@ export const MapView: FC = () => {
             onMapClick={handleMapClick}
           />
         </MapContainer>
-      </div>
 
-      {/* Comprehensive Legend */}
-      <div className="map-legend-bar" aria-label="Map symbols legend">
-        <div className="legend-group">
-          <span className="legend-title">Route Elements:</span>
-          <div className="legend-items">
-            <span className="legend-item">
-              <span className="legend-pin-badge legend-pin-origin" aria-hidden="true">A</span>
-              <span>Origin (Start)</span>
-            </span>
-            <span className="legend-item">
-              <span className="legend-pin-badge legend-pin-dest" aria-hidden="true">B</span>
-              <span>Destination (End)</span>
-            </span>
-            <span className="legend-item">
-              <span className="legend-route-line" aria-hidden="true"></span>
-              <span>Selected Route</span>
-            </span>
-            {routes.length > 1 && (
-              <span className="legend-item">
-                <span className="legend-route-line legend-route-alt" aria-hidden="true"></span>
-                <span>Alternative Route</span>
-              </span>
-            )}
-          </div>
-        </div>
+        {/* Collapsible Floating Legend Pill Overlay */}
+        <div
+          className={`map-legend-overlay ${isLegendOpen ? 'legend-open' : 'legend-collapsed'}`}
+          aria-label="Map symbols legend"
+        >
+          <button
+            type="button"
+            className="btn-legend-toggle"
+            onClick={() => setIsLegendOpen((prev) => !prev)}
+            aria-expanded={isLegendOpen}
+            aria-label="Toggle map symbols legend"
+          >
+            <span className="legend-toggle-indicator" aria-hidden="true" />
+            <span className="legend-toggle-text">Legend</span>
+            <IconChevron direction={isLegendOpen ? 'down' : 'up'} size={12} />
+          </button>
 
-        <div className="legend-group">
-          <span className="legend-title">Simulated Hazards:</span>
-          <div className="legend-items">
-            <span className="legend-item">
-              <span className="legend-dot legend-dot-high" aria-hidden="true"></span>
-              <span>High</span>
-            </span>
-            <span className="legend-item">
-              <span className="legend-dot legend-dot-medium" aria-hidden="true"></span>
-              <span>Medium</span>
-            </span>
-            <span className="legend-item">
-              <span className="legend-dot legend-dot-low" aria-hidden="true"></span>
-              <span>Low</span>
-            </span>
-          </div>
+          {isLegendOpen && (
+            <div className="legend-popover-content">
+              <div className="legend-group">
+                <span className="legend-title">Route Elements:</span>
+                <div className="legend-items">
+                  <span className="legend-item">
+                    <span className="legend-pin-badge legend-pin-origin" aria-hidden="true">A</span>
+                    <span>Origin (Start)</span>
+                  </span>
+                  <span className="legend-item">
+                    <span className="legend-pin-badge legend-pin-dest" aria-hidden="true">B</span>
+                    <span>Destination (End)</span>
+                  </span>
+                  <span className="legend-item">
+                    <span className="legend-route-line" aria-hidden="true" />
+                    <span>Selected Route</span>
+                  </span>
+                  {routes.length > 1 && (
+                    <span className="legend-item">
+                      <span className="legend-route-line legend-route-alt" aria-hidden="true" />
+                      <span>Alternative Route</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="legend-group">
+                <span className="legend-title">Simulated Hazards:</span>
+                <div className="legend-items">
+                  <span className="legend-item">
+                    <span className="legend-dot legend-dot-high" aria-hidden="true" />
+                    <span>High</span>
+                  </span>
+                  <span className="legend-item">
+                    <span className="legend-dot legend-dot-medium" aria-hidden="true" />
+                    <span>Medium</span>
+                  </span>
+                  <span className="legend-item">
+                    <span className="legend-dot legend-dot-low" aria-hidden="true" />
+                    <span>Low</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

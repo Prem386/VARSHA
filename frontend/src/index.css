@@ -1,59 +1,82 @@
 :root {
-  /* Surface & Backgrounds */
+  /* surfaces */
   --bg: #ECECEF;
-  --bg-surface: #ECECEF;
-  --bg-primary: #ECECEF;
-  --bg-secondary: #ECECEF;
-  --bg-card: #ECECEF;
+  --surface: #EFEFF2;
+  --bg-surface: var(--surface);
+  --bg-primary: var(--bg);
+  --bg-secondary: var(--surface);
+  --bg-card: var(--surface);
   --border-color: rgba(163, 165, 180, 0.25);
   --border-subtle: rgba(255, 255, 255, 0.7);
+  --border-interactive: rgba(43, 43, 48, 0.08);
 
-  /* Typography Colors (WCAG AA Compliant on #ECECEF) */
-  --text-primary: #2B2B30;     /* Contrast ratio: 11.8:1 */
-  --text-secondary: #5B5C66;   /* Contrast ratio: 5.6:1 */
-  --text-muted: #71727F;       /* Contrast ratio: 4.5:1 */
-
-  /* Neumorphic Shadow Scale */
-  --shadow-raised: 8px 8px 20px rgba(163, 165, 180, 0.45), -8px -8px 20px #ffffff;
-  --shadow-inset: inset 8px 8px 20px rgba(163, 165, 180, 0.45), inset -8px -8px 20px #ffffff;
-  --shadow-raised-sm: 4px 4px 10px rgba(163, 165, 180, 0.4), -4px -4px 10px #ffffff;
-  --shadow-inset-sm: inset 4px 4px 10px rgba(163, 165, 180, 0.4), inset -4px -4px 10px #ffffff;
-  --shadow-raised-hover: 10px 10px 24px rgba(163, 165, 180, 0.5), -10px -10px 24px #ffffff;
-
-  /* Accent: Warm Amber / Gold Palette */
-  --accent-gradient: linear-gradient(135deg, #FFD25A 0%, #F5A623 100%);
-  --accent-amber: #F5A623;
-  --accent-amber-glow: rgba(245, 166, 35, 0.35);
-  --accent-text: #A15207;      /* Contrast ratio: 4.8:1 on #ECECEF */
+  /* text (all ≥ 4.5:1 on --bg) */
+  --text: #2B2B30;             /* Primary text: 11.8:1 */
+  --text-primary: var(--text);
+  --text-2: #5B5C66;           /* Secondary text: 5.6:1 */
+  --text-secondary: var(--text-2);
+  --text-muted: #71727F;       /* Muted text: 4.5:1 */
+  --amber-text: #A15207;      /* Accessible amber on #ECECEF: 4.8:1 */
+  --accent-text: var(--amber-text);
   --accent-text-on-amber: #2B2B30;
-  --shadow-accent: 0 4px 14px rgba(245, 166, 35, 0.35);
-  --shadow-glow: 0 0 20px rgba(255, 210, 90, 0.3);
 
-  /* Auxiliary Functional Colors for Light Theme */
+  /* accent */
+  --amber-1: #FFD25A;
+  --amber-2: #F5A623;
+  --accent-grad: linear-gradient(135deg, var(--amber-1), var(--amber-2));
+  --accent-gradient: var(--accent-grad);
+  --accent-amber: var(--amber-2);
+  --accent-amber-glow: rgba(245, 166, 35, 0.35);
+
+  /* semantic (always paired with icon + text, never color alone) */
+  --risk-low: #0E8F8A;
+  --risk-med: #D98300;
+  --risk-high: #C62828;
   --accent-blue: #1D6FB8;
   --accent-cyan: #0E7490;
   --accent-emerald: #047857;
 
-  /* Corner Radius Scale */
-  --radius-sm: 14px;
-  --radius-md: 20px;
-  --radius-lg: 28px;
+  /* neumorphic shadows */
+  --sh-light: #FFFFFF;
+  --sh-dark: rgba(163, 165, 180, 0.45);
+  --raised: 8px 8px 20px var(--sh-dark), -8px -8px 20px var(--sh-light);
+  --shadow-raised: var(--raised);
+  --raised-sm: 4px 4px 10px var(--sh-dark), -4px -4px 10px var(--sh-light);
+  --shadow-raised-sm: var(--raised-sm);
+  --inset: inset 6px 6px 14px var(--sh-dark), inset -6px -6px 14px var(--sh-light);
+  --shadow-inset: var(--inset);
+  --inset-sm: inset 3px 3px 8px var(--sh-dark), inset -3px -3px 8px var(--sh-light);
+  --shadow-inset-sm: var(--inset-sm);
+  --shadow-raised-hover: 10px 10px 24px var(--sh-dark), -10px -10px 24px var(--sh-light);
+  --shadow-accent: 0 4px 14px rgba(245, 166, 35, 0.35);
+  --shadow-glow: 0 0 20px rgba(255, 210, 90, 0.3);
+
+  /* radius / spacing / motion */
+  --r-sm: 14px;
+  --r-md: 20px;
+  --r-lg: 28px;
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
   --radius-pill: 9999px;
 
-  /* 8px Spacing Grid */
-  --space-1: 8px;
-  --space-2: 16px;
-  --space-3: 24px;
-  --space-4: 32px;
+  --s-1: 8px;
+  --s-2: 16px;
+  --s-3: 24px;
+  --s-4: 32px;
+  --space-1: var(--s-1);
+  --space-2: var(--s-2);
+  --space-3: var(--s-3);
+  --space-4: var(--s-4);
   --space-5: 40px;
   --space-6: 48px;
 
-  /* Typography Stack */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, 'Helvetica Neue', Arial, sans-serif;
-
-  /* Transitions */
+  --ease: 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
   --transition-fast: 150ms ease-out;
-  --transition-normal: 180ms ease-out;
+  --transition-normal: var(--ease);
+
+  /* typography */
+  --font-sans: -apple-system, 'Segoe UI', Inter, system-ui, Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
 * {
@@ -64,14 +87,15 @@
 
 html {
   overflow-x: hidden;
-  background-color: var(--bg-surface);
+  background-color: var(--bg);
 }
 
 body {
   font-family: var(--font-sans);
-  background-color: var(--bg-surface);
-  color: var(--text-primary);
-  line-height: 1.6;
+  background-color: var(--bg);
+  color: var(--text);
+  line-height: 1.55;
+  font-size: 15px;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -86,86 +110,87 @@ body {
   overflow-x: hidden;
 }
 
-/* ==========================================================================
-   Accessible Focus Ring
-   ========================================================================== */
+/* Accessible Focus Ring */
 :focus-visible {
-  outline: 2px solid var(--accent-text);
+  outline: 2px solid var(--amber-2);
   outline-offset: 2px;
 }
 
 /* ==========================================================================
-   Reusable Neumorphic Classes
+   Base Neumorphic Components (Section 4 Core Components)
+   Depth Rule: Max 2 levels (Level 1: .panel, Level 2: .well, .btn, .input)
    ========================================================================== */
 
-/* Raised Surface Card */
+/* Level 1: Raised Surface Panel */
+.panel,
 .card {
-  background: var(--bg-surface);
-  box-shadow: var(--shadow-raised);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4);
+  background: var(--surface);
+  box-shadow: var(--raised);
+  border-radius: var(--r-lg);
+  padding: var(--s-3);
   border: 1px solid var(--border-subtle);
-  transition: box-shadow var(--transition-normal), transform var(--transition-normal);
+  transition: box-shadow var(--ease), transform var(--ease);
 }
 
-/* Pressed / Inset Surface Card */
+/* Level 2: Inset Well */
+.well,
 .card-inset {
-  background: var(--bg-surface);
-  box-shadow: var(--shadow-inset);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
+  background: var(--surface);
+  box-shadow: var(--inset);
+  border-radius: var(--r-md);
+  padding: var(--s-2);
   border: 1px solid rgba(163, 165, 180, 0.15);
 }
 
-/* Raised Interactive Button (min 44px accessible touch target) */
+/* Level 2: Interactive Button (min 44px touch target) */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-1);
+  gap: var(--s-1);
   min-height: 44px;
-  padding: 0.625rem 1.35rem;
-  border-radius: var(--radius-pill);
-  background: var(--bg-surface);
-  color: var(--text-primary);
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text);
   font-family: inherit;
   font-size: 0.875rem;
   font-weight: 500;
   letter-spacing: 0.01em;
-  border: 1px solid var(--border-subtle);
-  box-shadow: var(--shadow-raised-sm);
+  border: 1px solid var(--border-interactive);
+  box-shadow: var(--raised-sm);
   cursor: pointer;
   user-select: none;
-  transition: box-shadow var(--transition-fast), transform var(--transition-fast), background var(--transition-fast);
+  transition: box-shadow var(--ease), transform var(--ease), background var(--ease);
 }
 
 .btn:hover:not(:disabled) {
-  box-shadow: var(--shadow-raised);
+  box-shadow: var(--raised);
   transform: translateY(-1px);
 }
 
 .btn:active:not(:disabled) {
-  box-shadow: var(--shadow-inset-sm);
+  box-shadow: var(--inset-sm);
   transform: translateY(1px);
 }
 
 .btn:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
   box-shadow: none;
 }
 
 /* Accent Amber Button */
 .btn-accent {
-  background: var(--accent-gradient);
-  color: var(--accent-text-on-amber);
+  background: var(--accent-grad);
+  color: var(--text);
   font-weight: 600;
-  border: none;
-  box-shadow: 4px 4px 12px var(--accent-amber-glow), var(--shadow-raised-sm);
+  border: 1px solid rgba(245, 166, 35, 0.3);
+  box-shadow: 4px 4px 12px var(--accent-amber-glow), var(--raised-sm);
 }
 
 .btn-accent:hover:not(:disabled) {
-  box-shadow: 6px 6px 16px var(--accent-amber-glow), var(--shadow-raised);
+  box-shadow: 6px 6px 16px var(--accent-amber-glow), var(--raised);
   transform: translateY(-1px);
 }
 
@@ -174,48 +199,61 @@ body {
   transform: translateY(1px);
 }
 
-/* Chip / Pill Element */
-.chip,
-.pill {
+.btn-accent:disabled {
+  background: var(--surface);
+  color: var(--text-muted);
+  box-shadow: none;
+  border: 1px solid var(--border-interactive);
+  opacity: 0.5;
+}
+
+/* Round Icon Disc */
+.icon-disc {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--raised-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-1);
-  padding: 0.35rem 0.85rem;
-  border-radius: var(--radius-pill);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  letter-spacing: 0.03em;
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-  box-shadow: var(--shadow-raised-sm);
-  border: 1px solid var(--border-subtle);
-  transition: all var(--transition-fast);
+  flex-shrink: 0;
+  border: 1px solid var(--border-interactive);
 }
 
-/* Segmented Pill Group */
+/* Section Amber Dash Indicator */
+.section-dash {
+  width: 16px;
+  height: 2px;
+  background: var(--amber-2);
+  border-radius: 1px;
+  margin-bottom: 6px;
+}
+
+/* Segmented Control Track */
 .segmented {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   padding: 4px;
-  background: var(--bg-surface);
-  box-shadow: var(--shadow-inset-sm);
+  background: var(--surface);
+  box-shadow: var(--inset-sm);
   border-radius: var(--radius-pill);
-  border: 1px solid rgba(163, 165, 180, 0.2);
+  border: 1px solid var(--border-interactive);
 }
 
 .segmented-item {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   padding: 0.45rem 1rem;
   min-height: 36px;
   border-radius: var(--radius-pill);
   font-family: inherit;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--text-2);
   background: transparent;
   border: none;
   cursor: pointer;
@@ -223,35 +261,42 @@ body {
 }
 
 .segmented-item:hover:not(.active) {
-  color: var(--text-primary);
+  color: var(--text);
 }
 
 .segmented-item.active {
-  background: var(--bg-surface);
-  box-shadow: var(--shadow-raised-sm);
-  color: var(--accent-text);
+  background: var(--surface);
+  box-shadow: var(--raised-sm);
+  color: var(--amber-text);
   font-weight: 600;
 }
 
-/* Inset Form Input */
+.segmented-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--amber-2);
+}
+
+/* Level 2: Inset Form Input */
 .input {
   width: 100%;
-  min-height: 44px;
+  min-height: 48px;
   padding: 0.65rem 1rem;
-  background: var(--bg-surface);
-  color: var(--text-primary);
+  background: var(--surface);
+  color: var(--text);
   font-family: inherit;
   font-size: 0.9375rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(163, 165, 180, 0.15);
-  box-shadow: var(--shadow-inset-sm);
+  border-radius: var(--r-sm);
+  border: 1px solid transparent;
+  box-shadow: var(--inset-sm);
   outline: none;
-  transition: box-shadow var(--transition-fast), border-color var(--transition-fast);
+  transition: box-shadow var(--ease), border-color var(--ease);
 }
 
 .input:focus {
-  box-shadow: var(--shadow-inset);
-  border-color: rgba(245, 166, 35, 0.45);
+  box-shadow: var(--inset);
+  border-color: var(--amber-2);
 }
 
 .input::placeholder {
@@ -263,33 +308,37 @@ body {
   height: 1px;
   width: 100%;
   border: none;
-  margin: var(--space-2) 0;
+  margin: var(--s-2) 0;
   background: linear-gradient(90deg, transparent, rgba(163, 165, 180, 0.35) 15%, rgba(163, 165, 180, 0.35) 85%, transparent);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
-/* Neumorphic Badge */
-.badge {
+/* Badge & Pill */
+.badge,
+.chip,
+.pill {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.35rem;
   font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.05em;
-  padding: 0.35rem 0.85rem;
+  letter-spacing: 0.04em;
+  padding: 0.3rem 0.75rem;
   border-radius: var(--radius-pill);
-  background: var(--bg-surface);
-  box-shadow: var(--shadow-raised-sm);
-  color: var(--text-secondary);
+  background: var(--surface);
+  box-shadow: var(--raised-sm);
+  color: var(--text-2);
   border: 1px solid var(--border-subtle);
 }
 
 .badge-accent {
-  color: var(--accent-text);
+  color: var(--amber-text);
+  background: rgba(255, 210, 90, 0.15);
 }
 
 .badge-subtle {
-  color: var(--text-secondary);
+  color: var(--text-2);
 }
 
 .badge-pilot {

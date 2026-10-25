@@ -4,6 +4,7 @@ import type { PlaceSuggestion, RouteEndpointType, SelectedLocation } from '../..
 import { POPULAR_LANDMARKS, searchLandmarks } from './landmarks'
 import type { Landmark } from './landmarks'
 import { searchPlaces } from './placesService'
+import { IconSearch, IconClose, IconTarget, IconPin } from '../../components/Icons'
 import './PlaceSearchInput.css'
 
 export interface PlaceSearchInputProps {
@@ -280,14 +281,18 @@ export const PlaceSearchInput: FC<PlaceSearchInputProps> = ({
           title={isActiveTarget ? 'Map click will update this pin' : 'Click to select this location on map'}
           aria-pressed={isActiveTarget}
         >
-          <span className="pin-toggle-icon" aria-hidden="true">🎯</span>
+          <span className="pin-toggle-icon" aria-hidden="true">
+            <IconTarget size={16} />
+          </span>
           <span>{isActiveTarget ? 'Map Target Active' : 'Pick on Map'}</span>
         </button>
       </div>
 
       <div className="search-input-container">
         <div className="search-input-wrapper">
-          <span className="search-icon" aria-hidden="true">🔍</span>
+          <span className="search-icon" aria-hidden="true">
+            <IconSearch size={16} />
+          </span>
           <input
             ref={inputRef}
             id={id}
@@ -324,7 +329,7 @@ export const PlaceSearchInput: FC<PlaceSearchInputProps> = ({
               title={`Clear ${label.toLowerCase()}`}
               aria-label={`Clear ${label.toLowerCase()} location`}
             >
-              ✕
+              <IconClose size={14} />
             </button>
           )}
         </div>
@@ -369,7 +374,7 @@ export const PlaceSearchInput: FC<PlaceSearchInputProps> = ({
                       onMouseEnter={() => setHighlightedIndex(index)}
                     >
                       <div className="suggestion-icon" aria-hidden="true">
-                        {place.source === 'curated' ? '🏛️' : '📍'}
+                        <IconPin size={16} />
                       </div>
                       <div className="suggestion-info">
                         <div className="suggestion-title-row">

@@ -1,4 +1,4 @@
-import type { FC } from 'react'
+import type { FC, ReactNode } from 'react'
 import type {
   RoadRoute,
   RouteEndpointType,
@@ -11,6 +11,13 @@ import { formatDistance, formatDuration } from '../routing/osrmService'
 import PlaceSearchInput from '../search/PlaceSearchInput'
 import ScenarioSelector from '../scenarios/ScenarioSelector.tsx'
 import type { DemoScenarioId } from '../scenarios/scenarios.ts'
+import {
+  IconShield,
+  IconAlert,
+  IconInfo,
+  IconSwap,
+  IconChevron,
+} from '../../components/Icons'
 
 interface RouteSelectorProps {
   origin: SelectedLocation | null
@@ -50,19 +57,17 @@ const getRiskCategoryClass = (category?: RouteRiskCategory): string => {
   }
 }
 
-const getRiskCategoryIcon = (category?: RouteRiskCategory): string => {
+const renderRiskCategoryIcon = (category?: RouteRiskCategory): ReactNode => {
   switch (category) {
     case 'Low':
-      return '🛡️'
+      return <IconShield size={16} />
     case 'Moderate':
-      return '⚠️'
     case 'High':
-      return '⚠️'
     case 'Very High':
-      return '🛑'
+      return <IconAlert size={16} />
     case 'No nearby simulated hazards':
     default:
-      return 'ℹ️'
+      return <IconInfo size={16} />
   }
 }
 
@@ -80,7 +85,9 @@ const RouteRiskDisplay: FC<RouteRiskDisplayProps> = ({ assessment }) => {
       <div className="route-risk-block risk-block-error" role="status">
         <div className="risk-header-row">
           <span className="risk-category-tag risk-cat-error">
-            <span className="risk-tag-icon" aria-hidden="true">⚠️</span>
+            <span className="risk-tag-icon" aria-hidden="true">
+              <IconAlert size={16} />
+            </span>
             Risk Assessment Unavailable
           </span>
         </div>
@@ -93,7 +100,6 @@ const RouteRiskDisplay: FC<RouteRiskDisplayProps> = ({ assessment }) => {
 
   const { result } = assessment
   const categoryClass = getRiskCategoryClass(result.riskCategory)
-  const categoryIcon = getRiskCategoryIcon(result.riskCategory)
 
   return (
     <div
@@ -112,7 +118,9 @@ const RouteRiskDisplay: FC<RouteRiskDisplayProps> = ({ assessment }) => {
 
         <div className="risk-badge-container">
           <span className={`risk-category-tag ${categoryClass}`}>
-            <span className="risk-tag-icon" aria-hidden="true">{categoryIcon}</span>
+            <span className="risk-tag-icon" aria-hidden="true">
+              {renderRiskCategoryIcon(result.riskCategory)}
+            </span>
             <span className="risk-tag-label">{result.riskCategory}</span>
           </span>
           <span className="risk-simulated-caption">Simulated Prototype</span>
@@ -153,7 +161,9 @@ const RouteRiskDisplay: FC<RouteRiskDisplayProps> = ({ assessment }) => {
             <span className="summary-title">
               Contributing Hazards ({result.contributions.length})
             </span>
-            <span className="summary-chevron" aria-hidden="true">▾</span>
+            <span className="summary-chevron" aria-hidden="true">
+              <IconChevron direction="down" size={14} />
+            </span>
           </summary>
           <div className="contributions-list" onClick={(e) => e.stopPropagation()}>
             {result.contributions.map((c) => (
@@ -209,11 +219,11 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
     <div className="route-selector-container" role="region" aria-label="Route Origin and Destination Controls">
       <div className="route-selector-header">
         <div className="selector-title-group">
-          <span className="selector-badge">Navi Mumbai Pilot &bull; Route Safety</span>
-          <h4 className="selector-heading">Plan Route &amp; Compare Safety</h4>
+          <div className="section-dash" />
+          <h4 className="selector-heading">Plan your route</h4>
         </div>
         <p className="selector-instruction">
-          Search recognizable landmarks below or click &quot;Pick on Map&quot; to place pins directly.
+          Search a landmark or tap &quot;Pick on map&quot;.
         </p>
       </div>
 
@@ -235,13 +245,15 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
         <div className="swap-button-wrapper">
           <button
             type="button"
-            className="btn-swap-endpoints"
+            className="btn-swap-endpoints btn"
             onClick={onSwap}
             disabled={!origin && !destination}
             title="Swap Origin and Destination"
             aria-label="Swap origin and destination locations"
           >
-            <span className="swap-icon" aria-hidden="true">⇅</span>
+            <span className="swap-icon" aria-hidden="true">
+              <IconSwap size={18} />
+            </span>
             <span className="swap-sr-text">Swap</span>
           </button>
         </div>
@@ -260,16 +272,12 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
         />
       </div>
 
-      {/* Demo Scenario Selector for differential risk testing */}
-      <ScenarioSelector
-        selectedScenarioId={selectedScenarioId}
-        onSelectScenario={onSelectScenario}
-      />
-
       {/* Validation and Status Feedback */}
       {isIdentical && (
         <div className="validation-alert alert-error" role="alert">
-          <span className="alert-icon" aria-hidden="true">⚠️</span>
+          <span className="alert-icon" aria-hidden="true">
+            <IconAlert size={16} />
+          </span>
           <span>Origin and destination cannot be the same location. Please click the map to choose distinct coordinates.</span>
         </div>
       )}
@@ -286,7 +294,9 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
       {routeStatus === 'error' && routeError && (
         <div className="route-status-panel panel-error" role="alert">
           <div className="status-error-content">
-            <span className="status-error-icon" aria-hidden="true">⚠️</span>
+            <span className="status-error-icon" aria-hidden="true">
+              <IconAlert size={16} />
+            </span>
             <div className="status-error-text">
               <strong>Route retrieval failed:</strong>
               <p className="error-message">{routeError}</p>
@@ -467,7 +477,9 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
               <RouteRiskDisplay assessment={riskAssessments?.[selectedRoute.id]} />
 
               <div className="single-route-fallback-notice" role="status">
-                <span className="notice-icon" aria-hidden="true">ℹ️</span>
+                <span className="notice-icon" aria-hidden="true">
+                  <IconInfo size={16} />
+                </span>
                 <span className="notice-text">
                   Single driving route returned by routing service. No distinct alternative corridor found for these endpoints.
                 </span>
@@ -476,7 +488,9 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
           )}
 
           <div className="route-disclaimer" role="note">
-            <span className="disclaimer-icon" aria-hidden="true">ℹ️</span>
+            <span className="disclaimer-icon" aria-hidden="true">
+              <IconInfo size={16} />
+            </span>
             <div className="disclaimer-text">
               <p className="disclaimer-primary">
                 Prototype risk estimate based on simulated hazards. This is not a validated flood prediction or guarantee of route safety. Route duration does not include live traffic or monsoon-related delays.
@@ -484,6 +498,76 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
               <p className="disclaimer-engine">
                 {selectedRoute.engineEstimateNotice}
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Empty State before search */}
+      {routes.length === 0 && routeStatus === 'idle' && (
+        <div className="route-empty-well well">
+          <div className="empty-route-icon-disc icon-disc" aria-hidden="true">
+            <IconShield size={20} />
+          </div>
+          <p className="empty-route-text">Your route comparison will appear here.</p>
+
+          <div className="quick-presets-wrapper">
+            <span className="quick-presets-label">Popular routes:</span>
+            <div className="quick-presets-chips">
+              <button
+                type="button"
+                className="preset-chip-btn"
+                onClick={() => {
+                  onSelectOrigin({
+                    label: 'Vashi Station',
+                    coordinates: [19.0645, 72.9983],
+                    source: 'curated',
+                  })
+                  onSelectDestination({
+                    label: 'CBD Belapur Station',
+                    coordinates: [19.0185, 73.0385],
+                    source: 'curated',
+                  })
+                }}
+              >
+                Vashi → Belapur
+              </button>
+              <button
+                type="button"
+                className="preset-chip-btn"
+                onClick={() => {
+                  onSelectOrigin({
+                    label: 'Airoli Station',
+                    coordinates: [19.1553, 72.9986],
+                    source: 'curated',
+                  })
+                  onSelectDestination({
+                    label: 'Kharghar Station',
+                    coordinates: [19.0435, 73.0683],
+                    source: 'curated',
+                  })
+                }}
+              >
+                Airoli → Kharghar
+              </button>
+              <button
+                type="button"
+                className="preset-chip-btn"
+                onClick={() => {
+                  onSelectOrigin({
+                    label: 'Nerul Station',
+                    coordinates: [19.0330, 73.0185],
+                    source: 'curated',
+                  })
+                  onSelectDestination({
+                    label: 'Seawoods Grand Central',
+                    coordinates: [19.0223, 73.0175],
+                    source: 'curated',
+                  })
+                }}
+              >
+                Nerul → Seawoods
+              </button>
             </div>
           </div>
         </div>
@@ -500,7 +584,7 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
           aria-disabled={!canPlanRoute || routeStatus === 'loading'}
           title={
             !canPlanRoute
-              ? 'Select both distinct origin and destination first'
+              ? 'Choose both points to compare routes.'
               : routeStatus === 'loading'
               ? 'Requesting routes from OSRM...'
               : 'Calculate driving road routes via OSRM'
@@ -546,6 +630,22 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
           )}
         </p>
       </div>
+
+      {/* Demo Scenario Accordion (Section 5.5) */}
+      <details className="demo-mode-accordion">
+        <summary className="demo-mode-summary">
+          <span className="summary-title">▸ Demo mode</span>
+          {selectedScenarioId !== 'baseline' && (
+            <span className="badge badge-accent">Demo Active</span>
+          )}
+        </summary>
+        <div className="demo-mode-body">
+          <ScenarioSelector
+            selectedScenarioId={selectedScenarioId}
+            onSelectScenario={onSelectScenario}
+          />
+        </div>
+      </details>
     </div>
   )
 }

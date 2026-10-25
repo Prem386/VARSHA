@@ -30,6 +30,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+  flex-wrap: nowrap;
 }
 
 .endpoint-badge {
@@ -88,6 +89,8 @@
   cursor: pointer;
   box-shadow: var(--shadow-raised-sm);
   transition: all var(--transition-fast);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .btn-map-pin-toggle:hover:not(.btn-map-pin-active) {
@@ -398,8 +401,10 @@
 .selected-meta {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  width: 100%;
   gap: 0.5rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .meta-coords {
@@ -408,6 +413,7 @@
   font-weight: 600;
   color: var(--text-primary);
   letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .meta-tag {
@@ -419,6 +425,8 @@
   background: var(--bg-surface);
   box-shadow: var(--shadow-raised-sm);
   border: 1px solid var(--border-subtle);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .meta-tag-geoapify {

@@ -5,6 +5,14 @@ import {
   fetchOfficialAlerts,
   fetchRainfallForecast,
 } from './weatherService'
+import {
+  IconRain,
+  IconAlert,
+  IconRefresh,
+  IconInfo,
+  IconCheck,
+  IconChevron,
+} from '../../components/Icons'
 import './WeatherAlertsCard.css'
 
 export interface WeatherAlertsCardProps {
@@ -115,7 +123,9 @@ export const WeatherAlertsCard: React.FC<WeatherAlertsCardProps> = ({
       {/* Header */}
       <div className="weather-card-header">
         <div className="weather-card-title-group">
-          <div className="weather-card-icon" aria-hidden="true">📡</div>
+          <div className="weather-card-icon icon-disc" aria-hidden="true">
+            <IconRain size={20} />
+          </div>
           <div>
             <h3 className="weather-card-title">Live Weather &amp; Official Alerts</h3>
             <p className="weather-card-subtitle">
@@ -131,13 +141,22 @@ export const WeatherAlertsCard: React.FC<WeatherAlertsCardProps> = ({
           disabled={isLoading}
           aria-label="Refresh weather and alerts data"
         >
-          {isLoading ? 'Updating…' : '↻ Refresh Data'}
+          {isLoading ? (
+            'Updating…'
+          ) : (
+            <>
+              <IconRefresh size={15} />
+              <span>Refresh Data</span>
+            </>
+          )}
         </button>
       </div>
 
       {/* Distinction notice between official live data and simulated scenarios */}
       <div className="official-data-notice" role="note">
-        <span className="notice-icon" aria-hidden="true">ℹ️</span>
+        <span className="notice-icon" aria-hidden="true">
+          <IconInfo size={18} />
+        </span>
         <div>
           <strong>Official Data &amp; Geographic Scope Notice:</strong> Rainfall is a model-derived forecast for Navi Mumbai. Official alerts reflect active broadcasts from the NDMA SACHET feed (check the affected districts on each warning card for local relevance). Neither confirms road waterlogging nor guarantees route safety.
         </div>
@@ -159,7 +178,9 @@ export const WeatherAlertsCard: React.FC<WeatherAlertsCardProps> = ({
 
           {rainfallError ? (
             <div className="service-error-state" role="alert">
-              <span className="error-icon" aria-hidden="true">⚠️</span>
+              <span className="error-icon" aria-hidden="true">
+                <IconAlert size={18} />
+              </span>
               <div>
                 <strong>Rainfall forecast unavailable</strong>
                 <p className="error-detail">{rainfallError}</p>
@@ -310,7 +331,9 @@ export const WeatherAlertsCard: React.FC<WeatherAlertsCardProps> = ({
 
           {alertsError ? (
             <div className="service-error-state" role="alert">
-              <span className="error-icon" aria-hidden="true">⚠️</span>
+              <span className="error-icon" aria-hidden="true">
+                <IconAlert size={18} />
+              </span>
               <div>
                 <strong>Official alert feed unavailable</strong>
                 <p className="error-detail">{alertsError}</p>
@@ -332,7 +355,9 @@ export const WeatherAlertsCard: React.FC<WeatherAlertsCardProps> = ({
 
               {alerts.total === 0 ? (
                 <div className="empty-alerts-box" data-testid="no-alerts-state">
-                  <div className="empty-check-icon" aria-hidden="true">✓</div>
+                  <div className="empty-check-icon icon-disc" aria-hidden="true">
+                    <IconCheck size={20} />
+                  </div>
                   <div>
                     <h5 className="empty-alerts-title">No Active Official Disaster Alerts</h5>
                     <p className="empty-alerts-desc">
@@ -397,7 +422,8 @@ export const WeatherAlertsCard: React.FC<WeatherAlertsCardProps> = ({
                               onClick={() => setExpandedAlertId(isExpanded ? null : alert.identifier)}
                               aria-expanded={isExpanded}
                             >
-                              {isExpanded ? 'Hide Advisory Details ▲' : 'Show Instructions & Details ▼'}
+                              <span>{isExpanded ? 'Hide Advisory Details' : 'Show Instructions & Details'}</span>
+                              <IconChevron direction={isExpanded ? 'up' : 'down'} size={15} />
                             </button>
 
                             {isExpanded && (
