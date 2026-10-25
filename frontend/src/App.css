@@ -22,14 +22,14 @@
    ========================================================================== */
 
 .status-strip {
-  height: 56px;
-  min-height: 56px;
-  max-height: 56px;
+  height: calc(56px + env(safe-area-inset-top, 0px));
+  min-height: calc(56px + env(safe-area-inset-top, 0px));
+  max-height: calc(56px + env(safe-area-inset-top, 0px));
   box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 1.25rem;
+  padding: env(safe-area-inset-top, 0px) 1.25rem 0;
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border-subtle);
   box-shadow: var(--shadow-raised-sm);
@@ -113,6 +113,14 @@
   color: var(--accent-text);
 }
 
+.mobile-status-dot {
+  display: none;
+}
+
+.alerts-badge-count {
+  display: none;
+}
+
 .strip-icon-btn {
   display: inline-flex;
   align-items: center;
@@ -178,14 +186,14 @@
    ========================================================================== */
 
 .persistent-disclaimer-strip {
-  height: 40px;
-  min-height: 40px;
-  max-height: 40px;
+  height: calc(40px + env(safe-area-inset-bottom, 0px));
+  min-height: calc(40px + env(safe-area-inset-bottom, 0px));
+  max-height: calc(40px + env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 1.25rem;
+  padding: 0 1.25rem env(safe-area-inset-bottom, 0px);
   background: var(--bg-surface);
   border-top: 1px solid var(--border-subtle);
   box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.9);
@@ -572,28 +580,86 @@
 
 @media (max-width: 639.98px) {
   .varsha-app-container {
-    height: auto;
-    min-height: 100dvh;
-    overflow-y: auto;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+    position: relative;
   }
 
   .status-strip {
-    height: 56px;
-    padding: 0 0.75rem;
+    height: calc(52px + env(safe-area-inset-top, 0px));
+    min-height: calc(52px + env(safe-area-inset-top, 0px));
+    max-height: calc(52px + env(safe-area-inset-top, 0px));
+    padding: env(safe-area-inset-top, 0px) 0.75rem 0;
   }
 
   .brand-wordmark {
-    font-size: 1.1rem;
+    font-size: 1.15rem;
+    font-weight: 400;
   }
 
   .pilot-chip {
     display: none;
   }
 
-  .chip-label {
-    max-width: 70px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  .status-strip-right {
+    gap: 0.5rem;
+  }
+
+  /* Compact 44x44px round icon buttons on mobile */
+  .strip-chip-btn {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 50%;
+    position: relative;
+  }
+
+  .rain-chip .chip-label {
+    display: none !important;
+  }
+
+  .mobile-status-dot.rain-dot {
+    display: block !important;
+    position: absolute;
+    top: 9px;
+    right: 9px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--accent-amber);
+  }
+
+  .alerts-chip .chip-label {
+    display: none !important;
+  }
+
+  .alerts-badge-count {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 3px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #ffffff;
+    background-color: var(--accent-amber);
+    border-radius: 9999px;
+    line-height: 1;
+  }
+
+  .strip-icon-btn {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .about-text-label {
@@ -601,26 +667,55 @@
   }
 
   .strip-about-btn {
-    width: 36px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
     padding: 0;
     justify-content: center;
     border-radius: 50%;
   }
 
   .varsha-main-content {
-    padding: 8px;
-    overflow: visible;
+    height: calc(100dvh - 52px);
+    flex: 1;
+    padding: 0 !important;
+    overflow: hidden;
+    position: relative;
   }
 
+  /* 1-line persistent disclaimer strip above the sheet peek line */
   .persistent-disclaimer-strip {
+    position: fixed;
+    bottom: calc(144px + env(safe-area-inset-bottom, 0px));
+    left: 10px;
+    right: 10px;
+    z-index: 450;
+    border-radius: var(--radius-pill, 9999px);
+    background: rgba(236, 236, 239, 0.94);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: var(--shadow-raised-sm);
+    padding: 0.35rem 0.75rem;
     height: auto;
-    min-height: 40px;
-    padding: 0.65rem 0.75rem;
-    font-size: 0.7rem;
+    min-height: 28px;
+    font-size: 0.68rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    cursor: pointer;
+    border: 1px solid var(--border-subtle);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .disclaimer-strip-text {
-    white-space: normal;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
   }
 
   /* Popover becomes bottom sheet on mobile */
@@ -649,5 +744,33 @@
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
     border-top: 1px solid var(--border-subtle);
+  }
+}
+
+/* Landscape Phone (max-height: 500px): Force two-panel shell */
+@media (max-height: 500px) {
+  .status-strip {
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    padding: 0 0.75rem !important;
+  }
+
+  .varsha-main-content {
+    height: calc(100dvh - 44px - 28px) !important;
+    padding: 8px !important;
+  }
+
+  .persistent-disclaimer-strip {
+    position: static !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    max-height: 28px !important;
+    padding: 0 0.75rem !important;
+    font-size: 0.68rem !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    border-top: 1px solid var(--border-subtle) !important;
+    background: var(--bg-surface) !important;
   }
 }

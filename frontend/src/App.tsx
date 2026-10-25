@@ -93,6 +93,7 @@ export const App: FC = () => {
           >
             <IconRain size={16} />
             <span className="chip-label">{rainSummary}</span>
+            <span className="mobile-status-dot rain-dot" aria-hidden="true" />
           </button>
 
           <button
@@ -106,6 +107,9 @@ export const App: FC = () => {
             <span className="chip-label">
               {alertCount > 0 ? `${alertCount} alert${alertCount > 1 ? 's' : ''}` : '0 active'}
             </span>
+            {alertCount > 0 && (
+              <span className="alerts-badge-count" aria-hidden="true">{alertCount}</span>
+            )}
           </button>
 
           <button
@@ -138,13 +142,20 @@ export const App: FC = () => {
       </main>
 
       {/* 40px Persistent Disclaimer Strip */}
-      <footer className="persistent-disclaimer-strip" role="contentinfo">
+      <footer
+        className="persistent-disclaimer-strip"
+        role="contentinfo"
+        onClick={() => setAboutOpen(true)}
+      >
         <span className="disclaimer-strip-text">
           Simulated data prototype &bull; Navi Mumbai pilot &bull; Not for emergency navigation &bull;{' '}
           <button
             type="button"
             className="disclaimer-learn-more"
-            onClick={() => setAboutOpen(true)}
+            onClick={(e) => {
+              e.stopPropagation()
+              setAboutOpen(true)
+            }}
           >
             Learn more
           </button>

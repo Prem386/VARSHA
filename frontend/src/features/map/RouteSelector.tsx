@@ -263,7 +263,7 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
           endpointType="destination"
           label="Destination"
           tagLetter="B"
-          placeholder="Search landmark or click map (e.g. Belapur CBD)"
+          placeholder="Where to? (e.g. Belapur CBD)"
           value={destination}
           onSelect={onSelectDestination}
           onClear={() => onClear('destination')}
@@ -353,7 +353,16 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
                     .filter((s): s is number => typeof s === 'number')
                   const minRiskScore = validScores.length > 0 ? Math.min(...validScores) : null
 
-                  return routes.map((r, index) => {
+                  const sortedRoutes = [...routes].sort((a, b) => {
+                    const scoreA = riskAssessments?.[a.id]?.result?.score ?? 999
+                    const scoreB = riskAssessments?.[b.id]?.result?.score ?? 999
+                    if (scoreA !== scoreB) {
+                      return scoreA - scoreB
+                    }
+                    return a.durationSeconds - b.durationSeconds
+                  })
+
+                  return sortedRoutes.map((r, index) => {
                     const isSelected = r.id === selectedRoute.id
                     const label = r.label || `Route ${index + 1}`
                     const isFastest = r.durationSeconds === minDuration
@@ -573,6 +582,22 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
         </div>
       )}
 
+      {/* Demo Scenario Accordion (Section 5.5) */}
+      <details className="demo-mode-accordion">
+        <summary className="demo-mode-summary">
+          <span className="summary-title">▸ Demo mode</span>
+          {selectedScenarioId !== 'baseline' && (
+            <span className="badge badge-accent">Demo Active</span>
+          )}
+        </summary>
+        <div className="demo-mode-body">
+          <ScenarioSelector
+            selectedScenarioId={selectedScenarioId}
+            onSelectScenario={onSelectScenario}
+          />
+        </div>
+      </details>
+
       {/* Route Planning Action Footer */}
       <div className="route-planning-footer">
         <button
@@ -630,22 +655,6 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
           )}
         </p>
       </div>
-
-      {/* Demo Scenario Accordion (Section 5.5) */}
-      <details className="demo-mode-accordion">
-        <summary className="demo-mode-summary">
-          <span className="summary-title">▸ Demo mode</span>
-          {selectedScenarioId !== 'baseline' && (
-            <span className="badge badge-accent">Demo Active</span>
-          )}
-        </summary>
-        <div className="demo-mode-body">
-          <ScenarioSelector
-            selectedScenarioId={selectedScenarioId}
-            onSelectScenario={onSelectScenario}
-          />
-        </div>
-      </details>
     </div>
   )
 }

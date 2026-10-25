@@ -1,0 +1,220 @@
+/* ==========================================================================
+   VARSHA BottomSheet — Mobile Route Planner Sheet
+   Desktop/Tablet (>= 640px): Invisible passthrough container
+   Mobile (< 640px): 3-snap bottom sheet (peek 140px / half 52dvh / full 88dvh)
+   ========================================================================== */
+
+/* Desktop & Tablet Passthrough */
+@media (min-width: 640px) {
+  .bottom-sheet {
+    position: static;
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: transparent;
+    box-shadow: none;
+    border: none;
+    border-radius: 0;
+  }
+
+  .bottom-sheet-handle-area {
+    display: none !important;
+  }
+
+  .bottom-sheet-content {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+  }
+}
+
+/* Mobile Bottom Sheet (< 640px) */
+@media (max-width: 639.98px) {
+  .bottom-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 500;
+    background-color: var(--bg-surface);
+    border-top-left-radius: 24px;
+    border-top-right-radius: 24px;
+    border-top: 1px solid var(--border-subtle);
+    box-shadow: 0 -8px 30px rgba(43, 43, 48, 0.18);
+    display: flex;
+    flex-direction: column;
+    transition: height 200ms ease-out;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    will-change: height;
+    box-sizing: border-box;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* 3 Snap States */
+  .bottom-sheet.snap-peek {
+    height: 140px;
+  }
+
+  .bottom-sheet.snap-half {
+    height: 52dvh;
+  }
+
+  .bottom-sheet.snap-full {
+    height: 88dvh;
+  }
+
+  /* Accessible Touch Handle */
+  .bottom-sheet-handle-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 30px;
+    min-height: 30px;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    flex-shrink: 0;
+    outline: none;
+    background: transparent;
+  }
+
+  .bottom-sheet-handle-area:active {
+    cursor: grabbing;
+  }
+
+  .bottom-sheet-handle-area:focus-visible {
+    outline: 2px solid var(--accent-amber);
+    outline-offset: -2px;
+  }
+
+  .bottom-sheet-handle-bar {
+    width: 38px;
+    height: 4px;
+    border-radius: 9999px;
+    background: rgba(43, 43, 48, 0.32);
+    transition: background var(--transition-fast);
+  }
+
+  .bottom-sheet-handle-area:hover .bottom-sheet-handle-bar {
+    background: rgba(43, 43, 48, 0.55);
+  }
+
+  /* Sheet Inner Scrollable Container */
+  .bottom-sheet-content {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+    padding: 0 0.85rem 0.75rem;
+  }
+
+  /* Peek State Content Filtering */
+  .bottom-sheet.snap-peek .route-selector-header {
+    display: none !important;
+  }
+
+  .bottom-sheet.snap-peek .route-endpoints-grid > .place-search-card:first-child {
+    display: none !important;
+  }
+
+  .bottom-sheet.snap-peek .swap-button-wrapper {
+    display: none !important;
+  }
+
+  .bottom-sheet.snap-peek .route-empty-well,
+  .bottom-sheet.snap-peek .demo-mode-accordion,
+  .bottom-sheet.snap-peek .route-planning-footer,
+  .bottom-sheet.snap-peek .route-summary-panel {
+    display: none !important;
+  }
+
+  .bottom-sheet.snap-peek .route-selector-container {
+    padding: 0 !important;
+    gap: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+
+  .bottom-sheet.snap-peek .place-search-card {
+    padding: 0.25rem 0.5rem 0.5rem !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+
+  .bottom-sheet.snap-peek .search-card-header {
+    display: none !important;
+  }
+
+  .bottom-sheet.snap-peek .selected-meta {
+    display: none !important;
+  }
+}
+
+/* Landscape Phone (max-height 500px): Force 2-panel layout, planner scrolls internally */
+@media (max-height: 500px) {
+  .bottom-sheet {
+    position: static !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding-bottom: 0 !important;
+    transition: none !important;
+    transform: none !important;
+  }
+
+  .bottom-sheet-handle-area {
+    display: none !important;
+  }
+
+  .bottom-sheet-content {
+    height: 100% !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow-y: auto !important;
+    padding: 0 !important;
+  }
+
+  .bottom-sheet.snap-peek .route-selector-header,
+  .bottom-sheet.snap-peek .route-endpoints-grid > .place-search-card:first-child,
+  .bottom-sheet.snap-peek .swap-button-wrapper,
+  .bottom-sheet.snap-peek .route-empty-well,
+  .bottom-sheet.snap-peek .demo-mode-accordion,
+  .bottom-sheet.snap-peek .route-planning-footer,
+  .bottom-sheet.snap-peek .route-summary-panel,
+  .bottom-sheet.snap-peek .search-card-header {
+    display: revert !important;
+  }
+}
+
+/* Reduced Motion Override */
+@media (prefers-reduced-motion: reduce) {
+  .bottom-sheet {
+    transition: none !important;
+  }
+}
+
+/* High Contrast Fallback */
+@media (forced-colors: active), (prefers-contrast: more) {
+  .bottom-sheet {
+    border-top: 2px solid ButtonText !important;
+  }
+  .bottom-sheet-handle-bar {
+    background: ButtonText !important;
+  }
+}

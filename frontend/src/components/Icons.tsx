@@ -49,8 +49,10 @@ export const IconSearch: React.FC<IconProps> = ({ size = 20, strokeWidth = 1.5, 
 
 export const IconSwap: React.FC<IconProps> = ({ size = 20, strokeWidth = 1.5, className, ...props }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true" {...props}>
-    <path d="m7 15 5 5 5-5" />
-    <path d="m7 9 5-5 5 5" />
+    <path d="m3 8 4-4 4 4" />
+    <path d="M7 4v16" />
+    <path d="m21 16-4 4-4-4" />
+    <path d="M17 20V4" />
   </svg>
 )
 

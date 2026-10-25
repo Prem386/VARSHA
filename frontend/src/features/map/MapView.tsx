@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FC } from 'react'
-import { MapContainer, Polyline, TileLayer } from 'react-leaflet'
+import { MapContainer, Polyline, TileLayer, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import HazardMarkers from './HazardMarkers'
 import RouteEndpointMarkers from './RouteEndpointMarkers'
@@ -11,17 +11,61 @@ import { fetchRoadRoutes } from '../routing/osrmService'
 import { assessRoutesRisk } from '../routing/routeRiskAssessment.ts'
 import type { RoadRoute, RouteEndpointType, RouteStatus, SelectedLocation } from '../../types'
 import { IconChevron } from '../../components/Icons'
+import BottomSheet, { type SheetSnapState } from '../../components/BottomSheet'
 import './MapView.css'
 
 // ponytail: default to central Navi Mumbai coordinates; props deferred until multiple pilot areas exist
 const NAVI_MUMBAI_CENTER: [number, number] = [19.0330, 73.0297]
 const DEFAULT_ZOOM = 12
 
+const MapResizer: FC<{ sheetSnap?: SheetSnapState }> = ({ sheetSnap }) => {
+  const map = useMap()
+  useEffect(() => {
+    if (typeof map?.invalidateSize === 'function') {
+      map.invalidateSize()
+    }
+    const t = setTimeout(() => {
+      if (typeof map?.invalidateSize === 'function') {
+        map.invalidateSize()
+      }
+    }, 220)
+
+    const container = typeof map?.getContainer === 'function' ? map.getContainer() : null
+    let observer: ResizeObserver | null = null
+    if (typeof ResizeObserver !== 'undefined' && container) {
+      observer = new ResizeObserver(() => {
+        if (typeof map?.invalidateSize === 'function') {
+          map.invalidateSize()
+        }
+      })
+      observer.observe(container)
+    }
+    const handleResize = () => {
+      if (typeof map?.invalidateSize === 'function') {
+        map.invalidateSize()
+      }
+    }
+    window.addEventListener('resize', handleResize)
+    window.addEventListener('orientationchange', handleResize)
+    return () => {
+      clearTimeout(t)
+      if (observer) {
+        observer.disconnect()
+      }
+      window.removeEventListener('resize', handleResize)
+      window.removeEventListener('orientationchange', handleResize)
+    }
+  }, [map, sheetSnap])
+  return null
+}
+
 export const MapView: FC = () => {
   const [origin, setOrigin] = useState<SelectedLocation | null>(null)
   const [destination, setDestination] = useState<SelectedLocation | null>(null)
   const [activeTarget, setActiveTarget] = useState<RouteEndpointType>('origin')
-  const [isLegendOpen, setIsLegendOpen] = useState<boolean>(true)
+  const [isLegendOpen, setIsLegendOpen] = useState<boolean>(false)
+  const [sheetSnap, setSheetSnap] = useState<SheetSnapState>('peek')
+  const [isPickOnMapActive, setIsPickOnMapActive] = useState<boolean>(false)
 
   // Demo scenario state for differential risk comparison
   const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(DEFAULT_SCENARIO_ID)
@@ -90,7 +134,30 @@ export const MapView: FC = () => {
         setActiveTarget('origin')
       }
     }
+
+    if (isPickOnMapActive) {
+      setIsPickOnMapActive(false)
+      setSheetSnap('half')
+    }
   }
+
+  const handleSelectTarget = (target: RouteEndpointType) => {
+    setActiveTarget(target)
+    setIsPickOnMapActive(true)
+    setSheetSnap('peek')
+  }
+
+  const handleCancelPickOnMap = () => {
+    setIsPickOnMapActive(false)
+    setSheetSnap('half')
+  }
+
+  // Auto-expand sheet to Half when route calculation completes
+  useEffect(() => {
+    if (routes.length > 0 && routeStatus === 'success') {
+      setSheetSnap('half')
+    }
+  }, [routes, routeStatus])
 
   const handleSelectOrigin = (location: SelectedLocation) => {
     clearExistingRoute()
@@ -173,28 +240,54 @@ export const MapView: FC = () => {
 
   return (
     <div className="map-view-wrapper" role="region" aria-label="Interactive map of Navi Mumbai with road route and simulated hazard markers">
-      {/* Route Endpoint & OSRM Routing Controls */}
-      <RouteSelector
-        origin={origin}
-        destination={destination}
-        activeTarget={activeTarget}
-        onSelectTarget={setActiveTarget}
-        onSelectOrigin={handleSelectOrigin}
-        onSelectDestination={handleSelectDestination}
-        onSwap={handleSwap}
-        onClear={handleClear}
-        isIdentical={isIdentical}
-        routes={routes}
-        selectedRouteId={selectedRoute?.id ?? null}
-        onSelectRoute={setSelectedRouteId}
-        routeStatus={routeStatus}
-        routeError={routeError}
-        onPlanRoute={handlePlanRoute}
-        onClearRoute={clearExistingRoute}
-        riskAssessments={riskAssessments}
-        selectedScenarioId={selectedScenarioId}
-        onSelectScenario={setSelectedScenarioId}
-      />
+      {/* Floating banner when user is in Pick-on-map mode */}
+      {isPickOnMapActive && (
+        <div className="pick-on-map-banner panel" role="status" aria-live="polite">
+          <div className="pick-banner-content">
+            <span className="pick-banner-dot" aria-hidden="true" />
+            <span className="pick-banner-text">
+              Tap the map to set {activeTarget === 'origin' ? 'Origin' : 'Destination'}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="btn-cancel-pick"
+            onClick={handleCancelPickOnMap}
+            aria-label="Cancel map point selection"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {/* Route Endpoint & OSRM Routing Controls inside BottomSheet */}
+      <BottomSheet
+        snapState={sheetSnap}
+        onSnapChange={setSheetSnap}
+        aria-label="Route Planner"
+      >
+        <RouteSelector
+          origin={origin}
+          destination={destination}
+          activeTarget={activeTarget}
+          onSelectTarget={handleSelectTarget}
+          onSelectOrigin={handleSelectOrigin}
+          onSelectDestination={handleSelectDestination}
+          onSwap={handleSwap}
+          onClear={handleClear}
+          isIdentical={isIdentical}
+          routes={routes}
+          selectedRouteId={selectedRoute?.id ?? null}
+          onSelectRoute={setSelectedRouteId}
+          routeStatus={routeStatus}
+          routeError={routeError}
+          onPlanRoute={handlePlanRoute}
+          onClearRoute={clearExistingRoute}
+          riskAssessments={riskAssessments}
+          selectedScenarioId={selectedScenarioId}
+          onSelectScenario={setSelectedScenarioId}
+        />
+      </BottomSheet>
 
       {/* Interactive Map with Route Polylines, Hazards and Endpoints */}
       <div className="map-frame card-inset">
@@ -208,6 +301,7 @@ export const MapView: FC = () => {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors'
             url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
+          <MapResizer sheetSnap={sheetSnap} />
 
           {/* Unselected Alternative Routes (rendered first, below active route) */}
           {routes

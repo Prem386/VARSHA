@@ -88,6 +88,7 @@
 html {
   overflow-x: hidden;
   background-color: var(--bg);
+  height: 100%;
 }
 
 body {
@@ -96,18 +97,30 @@ body {
   color: var(--text);
   line-height: 1.55;
   font-size: 15px;
-  min-height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 #root {
-  min-height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   width: 100%;
   overflow-x: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Accessible Focus Ring */
