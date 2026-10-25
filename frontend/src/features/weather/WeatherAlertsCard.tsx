@@ -146,7 +146,7 @@ export const WeatherAlertsCard: React.FC<WeatherAlertsCardProps> = ({
       {/* Main Grid: Weather on Left, Alerts on Right */}
       <div className="weather-card-grid">
         {/* --- WEATHER COLUMN --- */}
-        <div className="weather-section" data-testid="weather-section">
+        <div className="weather-section card" data-testid="weather-section">
           <div className="section-subheading-row">
             <h4 className="section-subheading">Precipitation Forecast</h4>
             {rainfall?.provider.retrieved_at && (
@@ -220,13 +220,57 @@ export const WeatherAlertsCard: React.FC<WeatherAlertsCardProps> = ({
                       </span>
                     </div>
 
-                    <div className="summary-metric">
+                    <div className="summary-metric summary-metric-gauge">
                       <span className="metric-label">Max Rain Probability</span>
-                      <span className="metric-value">
-                        {rainfall.summary.max_probability_pct !== null
-                          ? `${rainfall.summary.max_probability_pct}%`
-                          : 'N/A'}
-                      </span>
+                      {(() => {
+                        const probValue = rainfall.summary.max_probability_pct
+                        const hasProb = probValue !== null && probValue !== undefined
+                        const probPct = hasProb ? Math.max(0, Math.min(100, Math.round(probValue))) : null
+                        const strokeDash = 213.63
+                        const strokeOffset = probPct !== null ? strokeDash - (strokeDash * probPct) / 100 : strokeDash
+
+                        return (
+                          <div className="ring-gauge-container">
+                            <svg className="ring-gauge-svg" width="84" height="84" viewBox="0 0 84 84" aria-hidden="true">
+                              <defs>
+                                <linearGradient id="rainGaugeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                  <stop offset="0%" stopColor="#FFD25A" />
+                                  <stop offset="100%" stopColor="#F5A623" />
+                                </linearGradient>
+                              </defs>
+                              <circle
+                                className="ring-gauge-bg"
+                                cx="42"
+                                cy="42"
+                                r="34"
+                                fill="none"
+                                stroke="rgba(163, 165, 180, 0.2)"
+                                strokeWidth="6.5"
+                              />
+                              {probPct !== null && probPct > 0 && (
+                                <circle
+                                  className="ring-gauge-progress"
+                                  cx="42"
+                                  cy="42"
+                                  r="34"
+                                  fill="none"
+                                  stroke="url(#rainGaugeGradient)"
+                                  strokeWidth="6.5"
+                                  strokeLinecap="round"
+                                  strokeDasharray={strokeDash}
+                                  strokeDashoffset={strokeOffset}
+                                  transform="rotate(-90 42 42)"
+                                />
+                              )}
+                            </svg>
+                            <div className="ring-gauge-center">
+                              <span className="metric-value">
+                                {hasProb ? `${probValue}%` : '—'}
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -254,7 +298,7 @@ export const WeatherAlertsCard: React.FC<WeatherAlertsCardProps> = ({
         </div>
 
         {/* --- OFFICIAL ALERTS COLUMN --- */}
-        <div className="alerts-section" data-testid="alerts-section">
+        <div className="alerts-section card" data-testid="alerts-section">
           <div className="section-subheading-row">
             <h4 className="section-subheading">Official Disaster Warnings</h4>
             {alerts && (

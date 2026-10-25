@@ -119,6 +119,16 @@ const RouteRiskDisplay: FC<RouteRiskDisplayProps> = ({ assessment }) => {
         </div>
       </div>
 
+      {/* Soft progress bar gauge with text label */}
+      <div className="risk-progress-wrapper" aria-hidden="true">
+        <div className="risk-progress-track">
+          <div
+            className={`risk-progress-bar progress-${categoryClass}`}
+            style={{ width: `${Math.min(100, Math.max(0, result.score))}%` }}
+          />
+        </div>
+      </div>
+
       <div className="risk-explanation-box">
         {result.includedHazardCount === 0 ? (
           <p className="risk-explanation-text">
@@ -328,16 +338,22 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
                 {(() => {
                   const minDuration = Math.min(...routes.map((r) => r.durationSeconds))
                   const minDistance = Math.min(...routes.map((r) => r.distanceMeters))
+                  const validScores = routes
+                    .map((r) => riskAssessments?.[r.id]?.result?.score)
+                    .filter((s): s is number => typeof s === 'number')
+                  const minRiskScore = validScores.length > 0 ? Math.min(...validScores) : null
+
                   return routes.map((r, index) => {
                     const isSelected = r.id === selectedRoute.id
                     const label = r.label || `Route ${index + 1}`
                     const isFastest = r.durationSeconds === minDuration
                     const isShortest = r.distanceMeters === minDistance
+                    const isSafer = minRiskScore !== null && riskAssessments?.[r.id]?.result?.score === minRiskScore
 
                     return (
                       <div
                         key={r.id}
-                        className={`route-option-card ${isSelected ? 'route-option-card-selected' : ''}`}
+                        className={`route-option-card card ${isSelected ? 'route-option-card-selected' : ''} ${isSafer ? 'route-card-recommended' : ''}`}
                         role="radio"
                         aria-checked={isSelected}
                         tabIndex={0}
@@ -377,6 +393,11 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
 
                         {/* Comparative Trade-off Badges */}
                         <div className="route-tradeoff-badges">
+                          {isSafer && (
+                            <span className="tradeoff-badge badge-safer">
+                              🛡️ Recommended / Safer
+                            </span>
+                          )}
                           {isFastest && (
                             <span className="tradeoff-badge badge-fastest">
                               ⚡ Fastest Estimate
@@ -472,7 +493,7 @@ export const RouteSelector: FC<RouteSelectorProps> = ({
       <div className="route-planning-footer">
         <button
           type="button"
-          className="btn-plan-route"
+          className="btn-plan-route btn-accent"
           onClick={onPlanRoute}
           disabled={!canPlanRoute || routeStatus === 'loading'}
           aria-busy={routeStatus === 'loading'}

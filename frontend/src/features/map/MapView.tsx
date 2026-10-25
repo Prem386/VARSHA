@@ -195,62 +195,64 @@ export const MapView: FC = () => {
       />
 
       {/* Interactive Map with Route Polylines, Hazards and Endpoints */}
-      <MapContainer
-        center={NAVI_MUMBAI_CENTER}
-        zoom={DEFAULT_ZOOM}
-        scrollWheelZoom={false}
-        className="varsha-leaflet-container"
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors'
-          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+      <div className="map-frame card-inset">
+        <MapContainer
+          center={NAVI_MUMBAI_CENTER}
+          zoom={DEFAULT_ZOOM}
+          scrollWheelZoom={false}
+          className="varsha-leaflet-container"
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors'
+            url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
 
-        {/* Unselected Alternative Routes (rendered first, below active route) */}
-        {routes
-          .filter((r) => r.id !== selectedRoute?.id)
-          .map((altRoute) => (
+          {/* Unselected Alternative Routes (rendered first, below active route) */}
+          {routes
+            .filter((r) => r.id !== selectedRoute?.id)
+            .map((altRoute) => (
+              <Polyline
+                key={altRoute.id}
+                positions={altRoute.coordinates}
+                pathOptions={{
+                  color: '#64748b',
+                  weight: 4,
+                  opacity: 0.6,
+                  lineCap: 'round',
+                  lineJoin: 'round',
+                  dashArray: '8, 8',
+                }}
+                eventHandlers={{
+                  click: () => {
+                    setSelectedRouteId(altRoute.id)
+                  },
+                }}
+              />
+            ))}
+
+          {/* Selected / Active Road Route Polyline */}
+          {selectedRoute && (
             <Polyline
-              key={altRoute.id}
-              positions={altRoute.coordinates}
+              key={selectedRoute.id}
+              positions={selectedRoute.coordinates}
               pathOptions={{
-                color: '#64748b',
-                weight: 4,
-                opacity: 0.6,
+                color: '#2563eb',
+                weight: 6,
+                opacity: 0.95,
                 lineCap: 'round',
                 lineJoin: 'round',
-                dashArray: '8, 8',
-              }}
-              eventHandlers={{
-                click: () => {
-                  setSelectedRouteId(altRoute.id)
-                },
               }}
             />
-          ))}
+          )}
 
-        {/* Selected / Active Road Route Polyline */}
-        {selectedRoute && (
-          <Polyline
-            key={selectedRoute.id}
-            positions={selectedRoute.coordinates}
-            pathOptions={{
-              color: '#2563eb',
-              weight: 6,
-              opacity: 0.95,
-              lineCap: 'round',
-              lineJoin: 'round',
-            }}
+          <HazardMarkers hazards={currentHazards} />
+          <RouteEndpointMarkers
+            origin={origin}
+            destination={destination}
+            onMapClick={handleMapClick}
           />
-        )}
-
-        <HazardMarkers hazards={currentHazards} />
-        <RouteEndpointMarkers
-          origin={origin}
-          destination={destination}
-          onMapClick={handleMapClick}
-        />
-      </MapContainer>
+        </MapContainer>
+      </div>
 
       {/* Comprehensive Legend */}
       <div className="map-legend-bar" aria-label="Map symbols legend">

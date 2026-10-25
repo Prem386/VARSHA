@@ -35,7 +35,7 @@ export const ScenarioSelector: FC<ScenarioSelectorProps> = ({
       </div>
 
       <div
-        className="scenario-options-group"
+        className="scenario-options-group segmented"
         role="radiogroup"
         aria-label="Select demo risk scenario"
       >
@@ -47,7 +47,7 @@ export const ScenarioSelector: FC<ScenarioSelectorProps> = ({
               type="button"
               role="radio"
               aria-checked={isSelected}
-              className={`scenario-option-btn ${isSelected ? 'scenario-btn-selected' : ''}`}
+              className={`scenario-option-btn segmented-item ${isSelected ? 'scenario-btn-selected active' : ''}`}
               onClick={() => onSelectScenario(scenario.id)}
               title={scenario.description}
             >
