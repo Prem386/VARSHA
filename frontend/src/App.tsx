@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { FC } from 'react'
 import MapView from './features/map/MapView'
 import WeatherAlertsCard from './features/weather/WeatherAlertsCard'
+import type { AlertListResponse, RainfallResponse } from './types'
 import {
   IconRain,
   IconAlert,
@@ -22,17 +23,13 @@ export const App: FC = () => {
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
   const [weatherOpen, setWeatherOpen] = useState<boolean>(false)
   const [aboutOpen, setAboutOpen] = useState<boolean>(false)
+  const [rainfallData, setRainfallData] = useState<RainfallResponse | null>(null)
+  const [alertsData, setAlertsData] = useState<AlertListResponse | null>(null)
 
-  const loadStatusData = useCallback(async () => {
-    setIsRefreshing(true)
-    try {
-      const [rainResult, alertsResult] = await Promise.allSettled([
-        fetchRainfallForecast(),
-        fetchOfficialAlerts(true),
-      ])
-
-      if (rainResult.status === 'fulfilled' && rainResult.value?.current) {
-        const mm = rainResult.value.current.precipitation_mm ?? 0
+  const updateSummaryMetrics = useCallback(
+    (rain: RainfallResponse | null, alerts: AlertListResponse | null) => {
+      if (rain?.current) {
+        const mm = rain.current.precipitation_mm ?? 0
         const desc =
           mm > 15
             ? 'Heavy rain'
@@ -44,16 +41,43 @@ export const App: FC = () => {
         // ponytail: current.precipitation_mm = 15-min model accumulation, NOT a rate — label accordingly
         setRainSummary(`${mm.toFixed(1)} mm (15m) · ${desc}`)
       }
-
-      if (alertsResult.status === 'fulfilled' && alertsResult.value) {
-        setAlertCount(alertsResult.value.total ?? 0)
+      if (alerts) {
+        setAlertCount(alerts.total ?? 0)
       }
+    },
+    []
+  )
+
+  const loadStatusData = useCallback(async () => {
+    setIsRefreshing(true)
+    try {
+      const [rainResult, alertsResult] = await Promise.allSettled([
+        fetchRainfallForecast(),
+        fetchOfficialAlerts(true),
+      ])
+
+      const freshRain = rainResult.status === 'fulfilled' ? rainResult.value : null
+      const freshAlerts = alertsResult.status === 'fulfilled' ? alertsResult.value : null
+
+      if (freshRain) setRainfallData(freshRain)
+      if (freshAlerts) setAlertsData(freshAlerts)
+
+      updateSummaryMetrics(freshRain, freshAlerts)
     } catch {
       // Keep sensible fallbacks
     } finally {
       setIsRefreshing(false)
     }
-  }, [])
+  }, [updateSummaryMetrics])
+
+  const handleCardDataRefreshed = useCallback(
+    (freshRain: RainfallResponse, freshAlerts: AlertListResponse) => {
+      setRainfallData(freshRain)
+      setAlertsData(freshAlerts)
+      updateSummaryMetrics(freshRain, freshAlerts)
+    },
+    [updateSummaryMetrics]
+  )
 
   useEffect(() => {
     loadStatusData()
@@ -198,7 +222,11 @@ export const App: FC = () => {
             </div>
 
             <div className="popover-body">
-              <WeatherAlertsCard />
+              <WeatherAlertsCard
+                initialRainfall={rainfallData}
+                initialAlerts={alertsData}
+                onDataRefreshed={handleCardDataRefreshed}
+              />
             </div>
           </div>
         </div>

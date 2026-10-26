@@ -228,18 +228,92 @@ class _CachedRainfallEntry:
     endpoint_url: str
 
 
+@dataclass
+class _FailureCooldownEntry:
+    """Internal failure cooldown entry wrapper."""
+
+    error_message: str
+    failed_at: datetime
+
+
+def _make_stale_response(
+    cached_resp: RainfallResponse,
+    cached_at: datetime,
+    error_message: str,
+    latitude: float,
+    longitude: float,
+) -> RainfallResponse:
+    """Format an existing cached response as a degraded stale fallback."""
+    return cached_resp.model_copy(
+        update={
+            "provider": RainfallProviderStatus(
+                provider="open_meteo",
+                status="degraded",
+                is_cached=True,
+                is_stale=True,
+                retrieved_at=cached_at,
+                error_message=error_message,
+                endpoint_url=cached_resp.provider.endpoint_url,
+            ),
+            "requested_coordinate": Coordinate(
+                latitude=latitude, longitude=longitude
+            ),
+        }
+    )
+
+
+def _make_unavailable_response(
+    endpoint_url: str,
+    error_message: str,
+    latitude: float,
+    longitude: float,
+) -> RainfallResponse:
+    """Format an explicit cold-start unavailable response."""
+    return RainfallResponse(
+        provider=RainfallProviderStatus(
+            provider="open_meteo",
+            status="unavailable",
+            is_cached=False,
+            is_stale=False,
+            retrieved_at=None,
+            error_message=error_message,
+            endpoint_url=endpoint_url,
+        ),
+        requested_coordinate=Coordinate(
+            latitude=latitude, longitude=longitude
+        ),
+        data_type="forecast_model",
+        is_model_derived=True,
+        is_physical_observation=False,
+        model_metadata=None,
+        current=None,
+        hourly=[],
+        summary=None,
+        caveats=list(DEFAULT_RAINFALL_CAVEATS),
+    )
+
+
 class OpenMeteoCache:
     """Bounded in-memory TTL cache for single-process Open-Meteo forecasts.
 
     Features:
     - Quantized coordinate keying (2 decimal places ~1.1km)
     - Deterministic time-injection for zero-sleep expiry testing
+    - Short cooldown window for upstream failure protection (HTTP 429, timeouts, network errors)
     - Resets on application restart (single-process prototype)
     """
 
-    def __init__(self, ttl_seconds: int = 900) -> None:
+    def __init__(
+        self,
+        ttl_seconds: int = 900,
+        failure_cooldown_seconds: int = 60,
+        max_failure_entries: int = 256,
+    ) -> None:
         self.ttl_seconds = ttl_seconds
+        self.failure_cooldown_seconds = failure_cooldown_seconds
+        self.max_failure_entries = max_failure_entries
         self._entries: Dict[str, _CachedRainfallEntry] = {}
+        self._failures: Dict[str, _FailureCooldownEntry] = {}
 
     @staticmethod
     def make_key(latitude: float, longitude: float, forecast_hours: int) -> str:
@@ -268,22 +342,70 @@ class OpenMeteoCache:
         endpoint_url: str,
         cached_at: Optional[datetime] = None,
     ) -> None:
-        """Store response in cache."""
+        """Store response in cache and clear any active failure cooldown."""
         saved_time = cached_at or datetime.now(timezone.utc)
         self._entries[key] = _CachedRainfallEntry(
             response=response,
             cached_at=saved_time,
             endpoint_url=endpoint_url,
         )
+        self._failures.pop(key, None)
+
+    def get_failure(
+        self, key: str, now: Optional[datetime] = None
+    ) -> Optional[Tuple[str, datetime]]:
+        """Retrieve failure cooldown entry if still active. Returns (error_message, failed_at) or None."""
+        entry = self._failures.get(key)
+        if entry is None:
+            return None
+
+        current_time = now or datetime.now(timezone.utc)
+        age = (current_time - entry.failed_at).total_seconds()
+        if age <= self.failure_cooldown_seconds:
+            return entry.error_message, entry.failed_at
+
+        # Expired cooldown: clean up
+        del self._failures[key]
+        return None
+
+    def set_failure(
+        self, key: str, error_message: str, failed_at: Optional[datetime] = None
+    ) -> None:
+        """Store failure in cooldown table with bounded capacity eviction."""
+        saved_time = failed_at or datetime.now(timezone.utc)
+        if len(self._failures) >= self.max_failure_entries:
+            # Prune expired entries first
+            expired_keys = [
+                k
+                for k, v in self._failures.items()
+                if (saved_time - v.failed_at).total_seconds() > self.failure_cooldown_seconds
+            ]
+            for k in expired_keys:
+                del self._failures[k]
+            # If still at capacity, evict oldest entry
+            if len(self._failures) >= self.max_failure_entries:
+                oldest_key = min(self._failures.keys(), key=lambda k: self._failures[k].failed_at)
+                del self._failures[oldest_key]
+
+        self._failures[key] = _FailureCooldownEntry(
+            error_message=error_message,
+            failed_at=saved_time,
+        )
 
     def clear(self) -> None:
-        """Clear all cached entries."""
+        """Clear all cached entries and failure cooldowns."""
         self._entries.clear()
+        self._failures.clear()
 
     @property
     def entry_count(self) -> int:
         """Number of cached entries."""
         return len(self._entries)
+
+    @property
+    def failure_count(self) -> int:
+        """Number of active failure cooldown entries."""
+        return len(self._failures)
 
 
 class OpenMeteoProvider:
@@ -295,6 +417,7 @@ class OpenMeteoProvider:
         timeout_seconds: Optional[float] = None,
         cache_ttl_seconds: Optional[int] = None,
         max_forecast_hours: Optional[int] = None,
+        failure_cooldown_seconds: Optional[int] = None,
     ) -> None:
         self.base_url = base_url or settings.OPEN_METEO_BASE_URL
         self.timeout_seconds = (
@@ -312,7 +435,12 @@ class OpenMeteoProvider:
             if max_forecast_hours is not None
             else settings.OPEN_METEO_MAX_FORECAST_HOURS
         )
-        self.cache = OpenMeteoCache(ttl_seconds=ttl)
+        cooldown = (
+            failure_cooldown_seconds
+            if failure_cooldown_seconds is not None
+            else 60  # ponytail: default 60-second cooldown on upstream 429 / network failures
+        )
+        self.cache = OpenMeteoCache(ttl_seconds=ttl, failure_cooldown_seconds=cooldown)
         self._lock = asyncio.Lock()
 
     def build_query_params(
@@ -348,9 +476,12 @@ class OpenMeteoProvider:
         Concurrency & Resilience Flow:
         1. Coordinate quantized cache lookup (fast hit).
         2. If fresh cache hit -> return response marked is_cached=True.
-        3. If miss/stale -> acquire async lock to prevent duplicate concurrent upstream queries.
-        4. On upstream success -> cache entry and return response.
-        5. On upstream failure:
+        3. If failure cooldown is active -> return degraded stale response or unavailable without hitting upstream.
+        4. If miss/stale -> acquire async lock to prevent duplicate concurrent upstream queries.
+        5. Under lock -> re-check fresh cache and failure cooldown (subsequent concurrent callers share first result).
+        6. On upstream success -> cache entry, clear failure cooldown, and return response.
+        7. On upstream failure:
+           - Record failure in cooldown table (60s default).
            - If stale cached entry exists -> return stale data with status='degraded', is_stale=True.
            - If cold start -> return explicit status='unavailable', empty series, no zero-rain claim.
         """
@@ -380,6 +511,19 @@ class OpenMeteoProvider:
                     }
                 )
 
+        # Fast failure cooldown check without waiting on lock
+        failure = self.cache.get_failure(cache_key)
+        if failure is not None:
+            fail_err, _ = failure
+            if cached is not None:
+                cached_resp, _, cached_at = cached
+                return _make_stale_response(
+                    cached_resp, cached_at, fail_err, latitude, longitude
+                )
+            return _make_unavailable_response(
+                endpoint_url, fail_err, latitude, longitude
+            )
+
         # Acquire lock to prevent thundering herd / duplicate concurrent requests
         async with self._lock:
             # Re-check cache under lock
@@ -403,6 +547,19 @@ class OpenMeteoProvider:
                             ),
                         }
                     )
+
+            # Re-check failure cooldown under lock (shared result for concurrent callers)
+            failure = self.cache.get_failure(cache_key)
+            if failure is not None:
+                fail_err, _ = failure
+                if cached is not None:
+                    cached_resp, _, cached_at = cached
+                    return _make_stale_response(
+                        cached_resp, cached_at, fail_err, latitude, longitude
+                    )
+                return _make_unavailable_response(
+                    endpoint_url, fail_err, latitude, longitude
+                )
 
             should_close = False
             if client is None:
@@ -429,52 +586,23 @@ class OpenMeteoProvider:
                 )
                 self.cache.set(cache_key, parsed, str(resp.url), cached_at=now_utc)
                 return parsed
+            except asyncio.CancelledError:
+                raise
             except Exception as exc:
                 safe_err = f"Upstream forecast request failed: {type(exc).__name__}"
                 logger.warning("Open-Meteo fetch error: %s", exc)
+                self.cache.set_failure(cache_key, safe_err, failed_at=now_utc)
 
                 # Serve stale cache if available
                 if cached is not None:
                     cached_resp, _, cached_at = cached
-                    return cached_resp.model_copy(
-                        update={
-                            "provider": RainfallProviderStatus(
-                                provider="open_meteo",
-                                status="degraded",
-                                is_cached=True,
-                                is_stale=True,
-                                retrieved_at=cached_at,
-                                error_message=safe_err,
-                                endpoint_url=cached_resp.provider.endpoint_url,
-                            ),
-                            "requested_coordinate": Coordinate(
-                                latitude=latitude, longitude=longitude
-                            ),
-                        }
+                    return _make_stale_response(
+                        cached_resp, cached_at, safe_err, latitude, longitude
                     )
 
                 # Cold-start failure: return explicit unavailable state
-                return RainfallResponse(
-                    provider=RainfallProviderStatus(
-                        provider="open_meteo",
-                        status="unavailable",
-                        is_cached=False,
-                        is_stale=False,
-                        retrieved_at=None,
-                        error_message=safe_err,
-                        endpoint_url=endpoint_url,
-                    ),
-                    requested_coordinate=Coordinate(
-                        latitude=latitude, longitude=longitude
-                    ),
-                    data_type="forecast_model",
-                    is_model_derived=True,
-                    is_physical_observation=False,
-                    model_metadata=None,
-                    current=None,
-                    hourly=[],
-                    summary=None,
-                    caveats=list(DEFAULT_RAINFALL_CAVEATS),
+                return _make_unavailable_response(
+                    endpoint_url, safe_err, latitude, longitude
                 )
             finally:
                 if should_close:

@@ -22,6 +22,7 @@ export interface WeatherAlertsCardProps {
   fetchRainfallFn?: (lat: number, lon: number, hours: number) => Promise<RainfallResponse>
   fetchAlertsFn?: (activeOnly: boolean) => Promise<AlertListResponse>
   referenceTime?: Date | string | null
+  onDataRefreshed?: (rainfall: RainfallResponse, alerts: AlertListResponse) => void
 }
 
 function formatTimestamp(isoStr: string | null | undefined): string {
@@ -143,12 +144,23 @@ export const WeatherAlertsCard: React.FC<WeatherAlertsCardProps> = ({
   fetchRainfallFn = (lat, lon, hours) => fetchRainfallForecast(lat, lon, hours),
   fetchAlertsFn = (activeOnly) => fetchOfficialAlerts(activeOnly),
   referenceTime = null,
+  onDataRefreshed,
 }) => {
   const [rainfall, setRainfall] = useState<RainfallResponse | null>(initialRainfall)
   const [alerts, setAlerts] = useState<AlertListResponse | null>(initialAlerts)
-  const [isLoading, setIsLoading] = useState<boolean>(autoFetch && (!initialRainfall || !initialAlerts))
-  const [rainfallError, setRainfallError] = useState<string | null>(null)
-  const [alertsError, setAlertsError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState<boolean>(
+    autoFetch && (!initialRainfall || !initialAlerts)
+  )
+  const [rainfallError, setRainfallError] = useState<string | null>(
+    initialRainfall?.provider.status === 'unavailable'
+      ? initialRainfall.provider.error_message || 'Rainfall forecast provider unavailable'
+      : null
+  )
+  const [alertsError, setAlertsError] = useState<string | null>(
+    initialAlerts?.provider.status === 'unavailable'
+      ? initialAlerts.provider.error_message || 'Official alerts provider unavailable'
+      : null
+  )
   const [expandedAlertId, setExpandedAlertId] = useState<string | null>(null)
 
   const loadData = useCallback(async () => {
@@ -167,10 +179,12 @@ export const WeatherAlertsCard: React.FC<WeatherAlertsCardProps> = ({
         if (res.provider.status === 'unavailable') {
           setRainfallError(res.provider.error_message || 'Rainfall forecast provider unavailable')
         }
+        return res
       })
       .catch((err: Error) => {
         setRainfall(null)
         setRainfallError(err.message || 'Failed to retrieve rainfall forecast')
+        return null
       })
 
     const alertsPromise = fetchAlertsFn(true)
@@ -179,21 +193,56 @@ export const WeatherAlertsCard: React.FC<WeatherAlertsCardProps> = ({
         if (res.provider.status === 'unavailable') {
           setAlertsError(res.provider.error_message || 'Official alerts provider unavailable')
         }
+        return res
       })
       .catch((err: Error) => {
         setAlerts(null)
         setAlertsError(err.message || 'Failed to retrieve official alerts')
+        return null
       })
 
-    await Promise.allSettled([rainfallPromise, alertsPromise])
+    const [rainSettled, alertsSettled] = await Promise.allSettled([rainfallPromise, alertsPromise])
     setIsLoading(false)
-  }, [fetchRainfallFn, fetchAlertsFn])
 
+    if (
+      rainSettled.status === 'fulfilled' &&
+      rainSettled.value &&
+      alertsSettled.status === 'fulfilled' &&
+      alertsSettled.value
+    ) {
+      onDataRefreshed?.(rainSettled.value, alertsSettled.value)
+    }
+  }, [fetchRainfallFn, fetchAlertsFn, onDataRefreshed])
+
+  // Only auto-fetch on mount if initial data has not already been supplied
   useEffect(() => {
-    if (autoFetch) {
+    if (autoFetch && (!initialRainfall || !initialAlerts)) {
       loadData()
     }
-  }, [autoFetch, loadData])
+  }, [autoFetch, loadData, initialRainfall, initialAlerts])
+
+  // Keep state synchronized if initial props change
+  useEffect(() => {
+    if (initialRainfall) {
+      setRainfall(initialRainfall)
+      setRainfallError(
+        initialRainfall.provider.status === 'unavailable'
+          ? initialRainfall.provider.error_message || 'Rainfall forecast provider unavailable'
+          : null
+      )
+    }
+  }, [initialRainfall])
+
+  useEffect(() => {
+    if (initialAlerts) {
+      setAlerts(initialAlerts)
+      setAlertsError(
+        initialAlerts.provider.status === 'unavailable'
+          ? initialAlerts.provider.error_message || 'Official alerts provider unavailable'
+          : null
+      )
+    }
+  }, [initialAlerts])
 
   const isRainfallStale = rainfall?.provider.is_stale || rainfall?.provider.status === 'degraded'
   const isAlertsStale = alerts?.provider.is_stale || alerts?.provider.status === 'degraded'

@@ -497,4 +497,68 @@ describe('WeatherAlertsCard Component', () => {
     expect(screen.getByText('8.5 mm')).toBeTruthy()
     expect(screen.getByText(/Incomplete forecast: 6 of 24 hourly intervals were missing/)).toBeTruthy()
   })
+
+  it('does not issue duplicate fetch on mount when valid initial data is supplied', () => {
+    const mockRainfallFn = vi.fn().mockResolvedValue(mockRainfallSuccess)
+    const mockAlertsFn = vi.fn().mockResolvedValue(mockAlertsSuccess)
+
+    render(
+      <WeatherAlertsCard
+        autoFetch={true}
+        initialRainfall={mockRainfallSuccess}
+        initialAlerts={mockAlertsSuccess}
+        fetchRainfallFn={mockRainfallFn}
+        fetchAlertsFn={mockAlertsFn}
+      />
+    )
+
+    // Data renders immediately from props
+    expect(screen.getByText('1.5 mm')).toBeTruthy()
+    expect(screen.getByText('Heavy to very heavy rainfall warning for Navi Mumbai region')).toBeTruthy()
+
+    // No duplicate fetch on mount
+    expect(mockRainfallFn).not.toHaveBeenCalled()
+    expect(mockAlertsFn).not.toHaveBeenCalled()
+  })
+
+  it('allows manual refresh when refresh button is clicked', async () => {
+    const freshRainfall: RainfallResponse = {
+      ...mockRainfallSuccess,
+      current: {
+        ...mockRainfallSuccess.current!,
+        precipitation_mm: 5.2,
+      },
+    }
+    const mockRainfallFn = vi.fn().mockResolvedValue(freshRainfall)
+    const mockAlertsFn = vi.fn().mockResolvedValue(mockAlertsSuccess)
+    const mockOnRefreshed = vi.fn()
+
+    render(
+      <WeatherAlertsCard
+        autoFetch={true}
+        initialRainfall={mockRainfallSuccess}
+        initialAlerts={mockAlertsSuccess}
+        fetchRainfallFn={mockRainfallFn}
+        fetchAlertsFn={mockAlertsFn}
+        onDataRefreshed={mockOnRefreshed}
+      />
+    )
+
+    expect(mockRainfallFn).not.toHaveBeenCalled()
+
+    // Click refresh button
+    const refreshBtn = screen.getByRole('button', { name: /Refresh weather and alerts data/i })
+    fireEvent.click(refreshBtn)
+
+    await waitFor(() => {
+      expect(mockRainfallFn).toHaveBeenCalledTimes(1)
+      expect(mockAlertsFn).toHaveBeenCalledTimes(1)
+    })
+
+    // UI updates with fresh data
+    await waitFor(() => {
+      expect(screen.getByText('5.2 mm')).toBeTruthy()
+    })
+    expect(mockOnRefreshed).toHaveBeenCalledWith(freshRainfall, mockAlertsSuccess)
+  })
 })

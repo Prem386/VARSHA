@@ -218,3 +218,168 @@ async def test_provider_concurrent_requests_no_duplicate_upstream() -> None:
             assert len(r.hourly) == 24
         # Lock and cache prevented duplicate fetches; only 1 upstream call made
         assert call_count == 1
+
+
+@pytest.mark.anyio
+async def test_provider_failure_cooldown_on_429() -> None:
+    """HTTP 429 triggers cooldown; second request within window does not call upstream."""
+    call_count = 0
+
+    def handler_429(request: httpx.Request) -> httpx.Response:
+        nonlocal call_count
+        call_count += 1
+        return httpx.Response(429, content=b"Too Many Requests", request=request)
+
+    transport = httpx.MockTransport(handler_429)
+    async with httpx.AsyncClient(transport=transport) as client:
+        provider = OpenMeteoProvider(failure_cooldown_seconds=60)
+
+        # 1. First call fails with 429
+        res1 = await provider.fetch_rainfall(19.033, 73.0297, forecast_hours=24, client=client)
+        assert res1.provider.status == "unavailable"
+        assert res1.provider.is_cached is False
+        assert "HTTPStatusError" in res1.provider.error_message
+        assert res1.hourly == []
+        assert res1.current is None
+        assert res1.summary is None
+        assert call_count == 1
+
+        # 2. Second call within cooldown window does NOT call upstream
+        res2 = await provider.fetch_rainfall(19.033, 73.0297, forecast_hours=24, client=client)
+        assert res2.provider.status == "unavailable"
+        assert res2.provider.is_cached is False
+        assert call_count == 1  # No second upstream call made
+
+
+@pytest.mark.anyio
+async def test_provider_concurrent_failure_calls_share_single_upstream_request() -> None:
+    """Five concurrent calls encountering 429 generate exactly one upstream request."""
+    call_count = 0
+
+    def handler_429(request: httpx.Request) -> httpx.Response:
+        nonlocal call_count
+        call_count += 1
+        return httpx.Response(429, content=b"Too Many Requests", request=request)
+
+    transport = httpx.MockTransport(handler_429)
+    async with httpx.AsyncClient(transport=transport) as client:
+        provider = OpenMeteoProvider(failure_cooldown_seconds=60)
+
+        tasks = [
+            provider.fetch_rainfall(19.033, 73.0297, forecast_hours=24, client=client)
+            for _ in range(5)
+        ]
+        results = await asyncio.gather(*tasks)
+
+        assert call_count == 1  # Exactly 1 upstream call
+        for r in results:
+            assert r.provider.status == "unavailable"
+            assert r.provider.is_cached is False
+            assert r.hourly == []
+            assert r.summary is None
+
+
+@pytest.mark.anyio
+async def test_provider_failure_cooldown_expiry_allows_retry() -> None:
+    """After failure cooldown expires, subsequent request can retry upstream."""
+    call_count = 0
+    return_success = False
+    raw_bytes = _read_fixture_bytes("forecast_success.json")
+
+    def dynamic_handler(request: httpx.Request) -> httpx.Response:
+        nonlocal call_count
+        call_count += 1
+        if return_success:
+            return httpx.Response(200, content=raw_bytes, request=request)
+        return httpx.Response(429, content=b"Too Many Requests", request=request)
+
+    transport = httpx.MockTransport(dynamic_handler)
+    async with httpx.AsyncClient(transport=transport) as client:
+        provider = OpenMeteoProvider(failure_cooldown_seconds=10)
+
+        # 1. Initial 429
+        res1 = await provider.fetch_rainfall(19.033, 73.0297, forecast_hours=24, client=client)
+        assert res1.provider.status == "unavailable"
+        assert call_count == 1
+
+        # 2. Backdate the failure timestamp to simulate cooldown expiration
+        key = provider.cache.make_key(19.033, 73.0297, 24)
+        expired_time = datetime.now(timezone.utc) - timedelta(seconds=20)
+        provider.cache._failures[key].failed_at = expired_time
+
+        # 3. Next request should retry upstream
+        return_success = True
+        res2 = await provider.fetch_rainfall(19.033, 73.0297, forecast_hours=24, client=client)
+        assert res2.provider.status == "ok"
+        assert len(res2.hourly) == 24
+        assert call_count == 2
+
+
+@pytest.mark.anyio
+async def test_provider_network_failure_receives_cooldown() -> None:
+    """Transient network errors (ConnectTimeout) trigger cooldown protection."""
+    call_count = 0
+
+    def timeout_handler(request: httpx.Request) -> httpx.Response:
+        nonlocal call_count
+        call_count += 1
+        raise httpx.ConnectTimeout("Connection timed out", request=request)
+
+    transport = httpx.MockTransport(timeout_handler)
+    async with httpx.AsyncClient(transport=transport) as client:
+        provider = OpenMeteoProvider(failure_cooldown_seconds=60)
+
+        res1 = await provider.fetch_rainfall(19.033, 73.0297, forecast_hours=24, client=client)
+        assert res1.provider.status == "unavailable"
+        assert "ConnectTimeout" in res1.provider.error_message
+        assert call_count == 1
+
+        # Second request within cooldown
+        res2 = await provider.fetch_rainfall(19.033, 73.0297, forecast_hours=24, client=client)
+        assert res2.provider.status == "unavailable"
+        assert call_count == 1  # Protected by cooldown
+
+
+@pytest.mark.anyio
+async def test_provider_stale_fallback_preserved_during_cooldown() -> None:
+    """Stale cached forecast is returned as degraded during 429 failure cooldown."""
+    raw_bytes = _read_fixture_bytes("forecast_success.json")
+    call_count = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return httpx.Response(200, content=raw_bytes, request=request)
+        return httpx.Response(429, content=b"Too Many Requests", request=request)
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as client:
+        provider = OpenMeteoProvider(cache_ttl_seconds=10, failure_cooldown_seconds=60)
+
+        # 1. Initial success populates cache
+        res1 = await provider.fetch_rainfall(19.033, 73.0297, forecast_hours=24, client=client)
+        assert res1.provider.status == "ok"
+        assert call_count == 1
+
+        # 2. Backdate cache entry to make it stale
+        key = provider.cache.make_key(19.033, 73.0297, 24)
+        original_retrieval_time = provider.cache._entries[key].cached_at
+        provider.cache._entries[key].cached_at = datetime.now(timezone.utc) - timedelta(seconds=20)
+
+        # 3. Next request triggers 429 upstream and enters cooldown
+        res2 = await provider.fetch_rainfall(19.033, 73.0297, forecast_hours=24, client=client)
+        assert res2.provider.status == "degraded"
+        assert res2.provider.is_cached is True
+        assert res2.provider.is_stale is True
+        assert res2.provider.retrieved_at == provider.cache._entries[key].cached_at
+        assert "HTTPStatusError" in res2.provider.error_message
+        assert len(res2.hourly) == 24
+        assert call_count == 2
+
+        # 4. Subsequent request within cooldown still returns stale data without calling upstream
+        res3 = await provider.fetch_rainfall(19.033, 73.0297, forecast_hours=24, client=client)
+        assert res3.provider.status == "degraded"
+        assert res3.provider.is_cached is True
+        assert res3.provider.is_stale is True
+        assert call_count == 2
