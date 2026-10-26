@@ -1,6 +1,10 @@
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import { describe, it, expect, afterEach, vi } from 'vitest'
-import { WeatherAlertsCard } from '../../src/features/weather/WeatherAlertsCard.tsx'
+import {
+  WeatherAlertsCard,
+  formatHourSlot,
+  selectNextSixForecastHours,
+} from '../../src/features/weather/WeatherAlertsCard.tsx'
 import type { AlertListResponse, RainfallResponse } from '../../src/types/index.ts'
 
 afterEach(() => {
@@ -308,5 +312,189 @@ describe('WeatherAlertsCard Component', () => {
     expect(
       screen.getByText(/Neither confirms road waterlogging nor guarantees route safety/)
     ).toBeTruthy()
+  })
+
+  it('renders next 6 hours forecast in Navi Mumbai local time (IST) with accumulation and probability', () => {
+    const mockRainfallWithHourly: RainfallResponse = {
+      ...mockRainfallSuccess,
+      hourly: [
+        {
+          timestamp: '2026-10-24T12:00:00Z',
+          precipitation_mm: 0.5,
+          precipitation_probability_pct: 45.0,
+          interval_minutes: 60,
+          unit: 'mm',
+          is_model_derived: true,
+        },
+        {
+          timestamp: '2026-10-24T13:00:00Z',
+          precipitation_mm: 1.2,
+          precipitation_probability_pct: 60.0,
+          interval_minutes: 60,
+          unit: 'mm',
+          is_model_derived: true,
+        },
+        {
+          timestamp: '2026-10-24T14:00:00Z',
+          precipitation_mm: 2.5,
+          precipitation_probability_pct: 80.0,
+          interval_minutes: 60,
+          unit: 'mm',
+          is_model_derived: true,
+        },
+        {
+          timestamp: '2026-10-24T15:00:00Z',
+          precipitation_mm: 0.0,
+          precipitation_probability_pct: 20.0,
+          interval_minutes: 60,
+          unit: 'mm',
+          is_model_derived: true,
+        },
+        {
+          timestamp: '2026-10-24T16:00:00Z',
+          precipitation_mm: 0.8,
+          precipitation_probability_pct: 35.0,
+          interval_minutes: 60,
+          unit: 'mm',
+          is_model_derived: true,
+        },
+        {
+          timestamp: '2026-10-24T17:00:00Z',
+          precipitation_mm: 0.1,
+          precipitation_probability_pct: 10.0,
+          interval_minutes: 60,
+          unit: 'mm',
+          is_model_derived: true,
+        },
+        {
+          timestamp: '2026-10-24T18:00:00Z',
+          precipitation_mm: 4.0,
+          precipitation_probability_pct: 90.0,
+          interval_minutes: 60,
+          unit: 'mm',
+          is_model_derived: true,
+        },
+      ],
+    }
+
+    render(
+      <WeatherAlertsCard
+        autoFetch={false}
+        initialRainfall={mockRainfallWithHourly}
+        initialAlerts={mockAlertsEmpty}
+      />
+    )
+
+    const hourlyBox = screen.getByTestId('hourly-forecast-box')
+    expect(hourlyBox).toBeTruthy()
+    expect(screen.getByText('Next 6 Hours Forecast (IST)')).toBeTruthy()
+
+    // 6 slot items rendered (first 6 hours of 7 provided)
+    const slotCards = hourlyBox.querySelectorAll('.hourly-slot-card')
+    expect(slotCards.length).toBe(6)
+
+    // Check hourly values
+    expect(screen.getByText('0.5 mm')).toBeTruthy()
+    expect(screen.getByText('1.2 mm')).toBeTruthy()
+    expect(screen.getByText('2.5 mm')).toBeTruthy()
+    expect(screen.getByText('0 mm')).toBeTruthy()
+    expect(screen.getByText('0.8 mm')).toBeTruthy()
+    expect(screen.getByText('0.1 mm')).toBeTruthy()
+    // 7th slot (4.0 mm) should not be in the 6-hour slice
+    expect(screen.queryByText('4 mm')).toBeNull()
+    expect(screen.queryByText('4.0 mm')).toBeNull()
+
+    // Check probabilities
+    expect(screen.getByText('45% prob')).toBeTruthy()
+    expect(screen.getByText('60% prob')).toBeTruthy()
+    expect(screen.getByText('80% prob')).toBeTruthy()
+    expect(screen.getByText('20% prob')).toBeTruthy()
+    expect(screen.getByText('35% prob')).toBeTruthy()
+    expect(screen.getByText('10% prob')).toBeTruthy()
+  })
+
+  describe('selectNextSixForecastHours and formatHourSlot helpers', () => {
+    it('excludes current hour (step.timestamp <= currentHourStart) and selects next 6 future hours', () => {
+      // Current time is 17:35 UTC (current hour is 17:00-18:00 UTC)
+      const refTime = '2026-10-23T17:35:00Z'
+      const steps = [
+        { timestamp: '2026-10-23T16:00:00Z', precipitation_mm: 0.1, precipitation_probability_pct: 10, interval_minutes: 60, unit: 'mm', is_model_derived: true },
+        { timestamp: '2026-10-23T17:00:00Z', precipitation_mm: 0.9, precipitation_probability_pct: 50, interval_minutes: 60, unit: 'mm', is_model_derived: true }, // Current hour
+        { timestamp: '2026-10-23T18:00:00Z', precipitation_mm: 1.0, precipitation_probability_pct: 60, interval_minutes: 60, unit: 'mm', is_model_derived: true }, // 1st future
+        { timestamp: '2026-10-23T19:00:00Z', precipitation_mm: 2.0, precipitation_probability_pct: 70, interval_minutes: 60, unit: 'mm', is_model_derived: true }, // 2nd future
+        { timestamp: '2026-10-23T20:00:00Z', precipitation_mm: 0.5, precipitation_probability_pct: 40, interval_minutes: 60, unit: 'mm', is_model_derived: true }, // 3rd future
+        { timestamp: '2026-10-23T21:00:00Z', precipitation_mm: 0.0, precipitation_probability_pct: 10, interval_minutes: 60, unit: 'mm', is_model_derived: true }, // 4th future
+        { timestamp: '2026-10-23T22:00:00Z', precipitation_mm: 0.2, precipitation_probability_pct: 20, interval_minutes: 60, unit: 'mm', is_model_derived: true }, // 5th future
+        { timestamp: '2026-10-23T23:00:00Z', precipitation_mm: 1.5, precipitation_probability_pct: 80, interval_minutes: 60, unit: 'mm', is_model_derived: true }, // 6th future
+        { timestamp: '2026-10-24T00:00:00Z', precipitation_mm: 3.0, precipitation_probability_pct: 90, interval_minutes: 60, unit: 'mm', is_model_derived: true }, // 7th future
+      ]
+
+      const selected = selectNextSixForecastHours(steps, refTime)
+      expect(selected.length).toBe(6)
+      // 17:00 (current hour) is excluded
+      expect(selected[0].timestamp).toBe('2026-10-23T18:00:00Z')
+      expect(selected[5].timestamp).toBe('2026-10-23T23:00:00Z')
+      // 24:00 is not in the 6-hour slice
+      expect(selected.some((s) => s.timestamp === '2026-10-24T00:00:00Z')).toBe(false)
+    })
+
+    it('safely handles out-of-order and malformed timestamps without crashing or fabricating', () => {
+      const refTime = '2026-10-23T12:00:00Z'
+      const messySteps = [
+        { timestamp: 'not-a-valid-date', precipitation_mm: 9.9, precipitation_probability_pct: 99, interval_minutes: 60, unit: 'mm', is_model_derived: true },
+        { timestamp: '2026-10-23T15:00:00Z', precipitation_mm: 1.5, precipitation_probability_pct: 40, interval_minutes: 60, unit: 'mm', is_model_derived: true },
+        { timestamp: '2026-10-23T13:00:00Z', precipitation_mm: 0.5, precipitation_probability_pct: 20, interval_minutes: 60, unit: 'mm', is_model_derived: true },
+        { timestamp: '2026-10-23T14:00:00Z', precipitation_mm: 1.0, precipitation_probability_pct: 30, interval_minutes: 60, unit: 'mm', is_model_derived: true },
+        // @ts-expect-error test malformed input
+        { timestamp: null, precipitation_mm: 0.0, precipitation_probability_pct: 0, interval_minutes: 60, unit: 'mm', is_model_derived: true },
+      ]
+
+      const selected = selectNextSixForecastHours(messySteps, refTime)
+      expect(selected.length).toBe(3)
+      // Sorted chronologically
+      expect(selected[0].timestamp).toBe('2026-10-23T13:00:00Z')
+      expect(selected[1].timestamp).toBe('2026-10-23T14:00:00Z')
+      expect(selected[2].timestamp).toBe('2026-10-23T15:00:00Z')
+    })
+
+    it('formats timestamps in Asia/Kolkata (IST) correctly', () => {
+      // 12:00 UTC is 17:30 IST (5:30 pm)
+      expect(formatHourSlot('2026-10-24T12:00:00Z')).toMatch(/5:30\s*pm/i)
+      // 18:30 UTC is 00:00 IST next day (12:00 am)
+      expect(formatHourSlot('2026-10-24T18:30:00Z')).toMatch(/12:00\s*am/i)
+      // Missing or null returns placeholder
+      expect(formatHourSlot(null)).toBe('—')
+      expect(formatHourSlot(undefined)).toBe('—')
+    })
+  })
+
+  it('renders partial accumulation label and note when 24-hour summary is incomplete', () => {
+    const partialRainfall: RainfallResponse = {
+      ...mockRainfallSuccess,
+      summary: {
+        forecast_hours: 24,
+        total_precipitation_mm: 8.5,
+        max_hourly_precipitation_mm: 2.1,
+        max_probability_pct: 70.0,
+        valid_hours: 18,
+        is_complete: false,
+      },
+    }
+
+    render(
+      <WeatherAlertsCard
+        autoFetch={false}
+        initialRainfall={partialRainfall}
+        initialAlerts={mockAlertsEmpty}
+      />
+    )
+
+    // Labeled as Rolling 24-Hour Forecast Summary
+    expect(screen.getByText('Rolling 24-Hour Forecast Summary')).toBeTruthy()
+
+    // Must clearly flag partial completeness
+    expect(screen.getByText('Total Accumulation (Partial: 18/24h)')).toBeTruthy()
+    expect(screen.getByText('8.5 mm')).toBeTruthy()
+    expect(screen.getByText(/Incomplete forecast: 6 of 24 hourly intervals were missing/)).toBeTruthy()
   })
 })

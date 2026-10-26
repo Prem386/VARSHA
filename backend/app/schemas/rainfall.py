@@ -179,6 +179,14 @@ class RainfallSummary(BaseModel):
         default=None,
         description="Highest precipitation probability recorded in the forecast window.",
     )
+    valid_hours: Optional[int] = Field(
+        default=None,
+        description="Count of valid non-null hourly intervals included in the summary.",
+    )
+    is_complete: bool = Field(
+        default=True,
+        description="True if all requested forecast hours contain valid non-null precipitation data.",
+    )
 
 
 class RainfallResponse(BaseModel):

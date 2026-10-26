@@ -204,3 +204,31 @@ test('fetchOfficialAlerts handles HTTP 500 upstream failure', async () => {
     }
   )
 })
+
+test('fetchRainfallForecast strips trailing slash from custom baseUrl', async () => {
+  let requestedUrl = ''
+  const mockFetch = async (url: string | URL | Request): Promise<Response> => {
+    requestedUrl = url.toString()
+    return new Response(
+      JSON.stringify({
+        provider: { provider: 'open_meteo', status: 'ok' },
+        current: null,
+        hourly: [],
+        summary: null,
+        caveats: [],
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
+  await fetchRainfallForecast(19.033, 73.0297, 24, {
+    baseUrl: 'https://varsha-api.onrender.com///',
+    fetchFn: mockFetch as unknown as typeof fetch,
+  })
+
+  assert.ok(
+    requestedUrl.startsWith('https://varsha-api.onrender.com/api/v1/rainfall'),
+    `Expected URL to start with single slash path, got ${requestedUrl}`
+  )
+  assert.ok(!requestedUrl.includes('.com//api'))
+})

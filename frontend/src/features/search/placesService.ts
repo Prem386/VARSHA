@@ -26,7 +26,7 @@ export class PlaceSearchError extends Error {
 function getDefaultBaseUrl(): string {
   try {
     if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) {
-      return (import.meta.env.VITE_API_BASE_URL as string)
+      return (import.meta.env.VITE_API_BASE_URL as string).trim().replace(/\/+$/, '')
     }
   } catch {
     // Ignore in non-Vite environments (e.g. Node test runner)
@@ -57,7 +57,8 @@ export async function searchPlaces(
   const cleanQuery = query.trim()
   const limit = options?.limit ?? 5
   const fetcher = options?.fetchFn ?? fetch
-  const baseUrl = options?.baseUrl ?? getDefaultBaseUrl()
+  const rawBaseUrl = options?.baseUrl ?? getDefaultBaseUrl()
+  const baseUrl = rawBaseUrl.trim().replace(/\/+$/, '')
 
   if (cleanQuery.length < 2) {
     return {

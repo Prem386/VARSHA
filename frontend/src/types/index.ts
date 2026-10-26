@@ -174,6 +174,8 @@ export interface RainfallSummary {
   total_precipitation_mm: number | null
   max_hourly_precipitation_mm: number | null
   max_probability_pct: number | null
+  valid_hours?: number | null
+  is_complete?: boolean
 }
 
 export interface RainfallResponse {

@@ -407,3 +407,31 @@ test('Map-click selection remains fully functional when remote search is active'
   assert.equal(origin.source, 'map')
   assert.equal(origin.landmarkId, undefined)
 })
+
+test('searchPlaces strips trailing slash from custom baseUrl', async () => {
+  let requestedUrl = ''
+  const mockFetch = async (url: string | URL | Request): Promise<Response> => {
+    requestedUrl = url.toString()
+    return new Response(
+      JSON.stringify({
+        query: 'Vashi',
+        total: 0,
+        results: [],
+        source: 'geoapify',
+        cached: false,
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
+  await searchPlaces('Vashi', {
+    baseUrl: 'https://varsha-api.onrender.com///',
+    fetchFn: mockFetch as unknown as typeof fetch,
+  })
+
+  assert.ok(
+    requestedUrl.startsWith('https://varsha-api.onrender.com/api/v1/places/search'),
+    `Expected URL to start with single slash path, got ${requestedUrl}`
+  )
+  assert.ok(!requestedUrl.includes('.com//api'))
+})

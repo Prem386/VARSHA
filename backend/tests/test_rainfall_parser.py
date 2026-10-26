@@ -78,6 +78,8 @@ def test_parse_valid_forecast_success() -> None:
     assert resp.summary.max_probability_pct == 85.0
     assert resp.summary.total_precipitation_mm is not None
     assert resp.summary.total_precipitation_mm > 0.0
+    assert resp.summary.valid_hours == 24
+    assert resp.summary.is_complete is True
 
     # Caveats and flood disclaimers
     assert len(resp.caveats) >= 4
@@ -134,6 +136,8 @@ def test_parse_with_nulls_preserves_none() -> None:
     assert resp.summary.total_precipitation_mm == 1.5
     assert resp.summary.max_hourly_precipitation_mm == 1.5
     assert resp.summary.max_probability_pct == 40.0
+    assert resp.summary.valid_hours == 1
+    assert resp.summary.is_complete is False
 
     # Current has null precipitation
     assert resp.current is not None

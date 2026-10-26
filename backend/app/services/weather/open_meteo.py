@@ -182,11 +182,16 @@ def parse_open_meteo_response(
         round(max(non_null_probs), 1) if non_null_probs else None
     )
 
+    valid_hours = len(non_null_precips)
+    is_complete = (valid_hours == forecast_hours and len(hourly_steps) == forecast_hours)
+
     summary = RainfallSummary(
         forecast_hours=forecast_hours,
         total_precipitation_mm=total_mm,
         max_hourly_precipitation_mm=max_hourly_mm,
         max_probability_pct=max_prob,
+        valid_hours=valid_hours,
+        is_complete=is_complete,
     )
 
     # 5. Provider Status

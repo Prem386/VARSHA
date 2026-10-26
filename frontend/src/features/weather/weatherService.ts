@@ -31,7 +31,7 @@ export class WeatherApiError extends Error {
 function getDefaultBaseUrl(): string {
   try {
     if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) {
-      return import.meta.env.VITE_API_BASE_URL as string
+      return (import.meta.env.VITE_API_BASE_URL as string).trim().replace(/\/+$/, '')
     }
   } catch {
     // Non-Vite test environment fallback
@@ -49,7 +49,8 @@ export async function fetchRainfallForecast(
   options?: FetchOptions
 ): Promise<RainfallResponse> {
   const fetcher = options?.fetchFn ?? fetch
-  const baseUrl = options?.baseUrl ?? getDefaultBaseUrl()
+  const rawBaseUrl = options?.baseUrl ?? getDefaultBaseUrl()
+  const baseUrl = rawBaseUrl.trim().replace(/\/+$/, '')
   const endpoint = `${baseUrl}/api/v1/rainfall?latitude=${latitude}&longitude=${longitude}&forecast_hours=${forecastHours}`
 
   let response: Response
@@ -91,7 +92,8 @@ export async function fetchOfficialAlerts(
   options?: FetchOptions
 ): Promise<AlertListResponse> {
   const fetcher = options?.fetchFn ?? fetch
-  const baseUrl = options?.baseUrl ?? getDefaultBaseUrl()
+  const rawBaseUrl = options?.baseUrl ?? getDefaultBaseUrl()
+  const baseUrl = rawBaseUrl.trim().replace(/\/+$/, '')
   const endpoint = `${baseUrl}/api/v1/alerts?active_only=${activeOnly}`
 
   let response: Response

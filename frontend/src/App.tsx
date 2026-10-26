@@ -41,7 +41,8 @@ export const App: FC = () => {
             : mm > 0.5
             ? 'Light rain'
             : 'Clear'
-        setRainSummary(`${mm.toFixed(1)} mm/hr · ${desc}`)
+        // ponytail: current.precipitation_mm = 15-min model accumulation, NOT a rate — label accordingly
+        setRainSummary(`${mm.toFixed(1)} mm (15m) · ${desc}`)
       }
 
       if (alertsResult.status === 'fulfilled' && alertsResult.value) {
@@ -173,7 +174,7 @@ export const App: FC = () => {
             className="weather-popover-card panel"
             role="dialog"
             aria-modal="true"
-            aria-label="Live Monsoon Weather & Alerts"
+            aria-label="Monsoon Forecast & Alerts"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="popover-header">
@@ -182,7 +183,7 @@ export const App: FC = () => {
                   <IconRain size={18} />
                 </span>
                 <div>
-                  <h3 className="popover-title">Live Monsoon Weather</h3>
+                  <h3 className="popover-title">Monsoon Forecast &amp; Alerts</h3>
                   <p className="popover-subtitle">Numerical weather prediction &amp; NDMA SACHET alerts</p>
                 </div>
               </div>
