@@ -14,12 +14,17 @@ app = FastAPI(
 )
 
 # CORS Middleware
-# Local development defaults to http://localhost:5173.
+# Local development defaults to http://localhost:5173 and http://127.0.0.1:5173.
 # For staging/production, configure CORS_ORIGINS in .env or deployment environment.
 if settings.CORS_ORIGINS:
+    origins = list(settings.CORS_ORIGINS)
+    for dev_origin in ("http://localhost:5173", "http://127.0.0.1:5173"):
+        if dev_origin not in origins:
+            origins.append(dev_origin)
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS,
+        allow_origins=origins,
         allow_credentials=False,  # ponytail: no session cookies or auth credentials in Phase 5.2
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["*"],

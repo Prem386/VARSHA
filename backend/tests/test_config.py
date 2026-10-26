@@ -27,6 +27,23 @@ def test_override_cors_origins_json_list():
         assert cfg.CORS_ORIGINS == ["https://varsha.org"]
 
 
+def test_override_cors_origins_normalizes_trailing_slash_and_quotes():
+    """Verify origins with trailing slashes, quotes, or single-quoted lists normalize."""
+    with mock.patch.dict(
+        os.environ,
+        {"CORS_ORIGINS": "['https://varsha-dun.vercel.app/', 'http://localhost:5173/']"},
+    ):
+        cfg = Settings()
+        assert cfg.CORS_ORIGINS == [
+            "https://varsha-dun.vercel.app",
+            "http://localhost:5173",
+        ]
+
+    with mock.patch.dict(os.environ, {"CORS_ORIGINS": '"https://varsha-dun.vercel.app/"'}):
+        cfg = Settings()
+        assert cfg.CORS_ORIGINS == ["https://varsha-dun.vercel.app"]
+
+
 def test_override_environment():
     """Verify ENVIRONMENT override."""
     with mock.patch.dict(os.environ, {"ENVIRONMENT": "production"}):

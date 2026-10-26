@@ -17,11 +17,15 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str = "development"
 
-    # CORS origins: default to local Vite dev server (http://localhost:5173).
+    # CORS origins: default allows local Vite dev servers and production Vercel deployment.
     # For deployment: update via CORS_ORIGINS env var with target domains
-    # e.g., '["https://varsha.app"]' or 'https://varsha.app,https://staging.varsha.app'.
+    # e.g., '["https://varsha-dun.vercel.app"]' or 'https://varsha-dun.vercel.app'.
     # Unrestricted wildcard origins ("*") should never be used in production.
-    CORS_ORIGINS: Union[List[str], str] = ["http://localhost:5173"]
+    CORS_ORIGINS: Union[List[str], str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "https://varsha-dun.vercel.app",
+    ]
 
     # NDMA SACHET alert feed settings
     # Default is the official nationwide RSS feed; state-specific feeds (e.g. rss_maharashtra.xml) are configurable.
@@ -50,17 +54,33 @@ class Settings(BaseSettings):
     @field_validator("CORS_ORIGINS", mode="after")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
+        raw_items: List[str] = []
         if isinstance(v, str):
-            v_stripped = v.strip()
+            v_stripped = v.strip().strip("'\"")
             if v_stripped.startswith("[") and v_stripped.endswith("]"):
                 try:
                     parsed = json.loads(v_stripped)
                     if isinstance(parsed, list):
-                        return [str(item).strip() for item in parsed if item]
+                        raw_items = [str(item) for item in parsed]
                 except json.JSONDecodeError:
-                    pass
-            return [origin.strip() for origin in v_stripped.split(",") if origin.strip()]
-        return [str(item).strip() for item in v if item]
+                    try:
+                        parsed = json.loads(v_stripped.replace("'", '"'))
+                        if isinstance(parsed, list):
+                            raw_items = [str(item) for item in parsed]
+                    except json.JSONDecodeError:
+                        raw_items = v_stripped[1:-1].split(",")
+            else:
+                raw_items = v_stripped.split(",")
+        elif isinstance(v, (list, tuple, set)):
+            raw_items = [str(item) for item in v]
+
+        cleaned: List[str] = []
+        for item in raw_items:
+            # ponytail: normalize origin by stripping whitespace, wrapping quotes, and trailing slashes
+            norm = item.strip().strip("'\"").rstrip("/")
+            if norm and norm not in cleaned:
+                cleaned.append(norm)
+        return cleaned
 
     model_config = SettingsConfigDict(
         env_file=[
