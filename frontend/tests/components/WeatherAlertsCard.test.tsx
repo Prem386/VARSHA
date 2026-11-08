@@ -561,4 +561,83 @@ describe('WeatherAlertsCard Component', () => {
     })
     expect(mockOnRefreshed).toHaveBeenCalledWith(freshRainfall, mockAlertsSuccess)
   })
+
+  it('fetches rainfall independently without fetching alerts when initialAlerts is present', async () => {
+    const mockRainfallFn = vi.fn().mockResolvedValue(mockRainfallSuccess)
+    const mockAlertsFn = vi.fn().mockResolvedValue(mockAlertsSuccess)
+
+    render(
+      <WeatherAlertsCard
+        autoFetch={true}
+        initialRainfall={null}
+        initialAlerts={mockAlertsSuccess}
+        fetchRainfallFn={mockRainfallFn}
+        fetchAlertsFn={mockAlertsFn}
+      />
+    )
+
+    await waitFor(() => {
+      expect(mockRainfallFn).toHaveBeenCalledTimes(1)
+    })
+    // Alerts must NOT be fetched because initialAlerts was already provided
+    expect(mockAlertsFn).not.toHaveBeenCalled()
+  })
+
+  it('fetches alerts independently without fetching rainfall when initialRainfall is present', async () => {
+    const mockRainfallFn = vi.fn().mockResolvedValue(mockRainfallSuccess)
+    const mockAlertsFn = vi.fn().mockResolvedValue(mockAlertsSuccess)
+
+    render(
+      <WeatherAlertsCard
+        autoFetch={true}
+        initialRainfall={mockRainfallSuccess}
+        initialAlerts={null}
+        fetchRainfallFn={mockRainfallFn}
+        fetchAlertsFn={mockAlertsFn}
+      />
+    )
+
+    await waitFor(() => {
+      expect(mockAlertsFn).toHaveBeenCalledTimes(1)
+    })
+    // Rainfall must NOT be fetched because initialRainfall was already provided
+    expect(mockRainfallFn).not.toHaveBeenCalled()
+  })
+
+  it('does not re-fetch when component re-renders with new callback references', async () => {
+    const mockRainfallFn = vi.fn().mockResolvedValue(mockRainfallSuccess)
+    const mockAlertsFn = vi.fn().mockResolvedValue(mockAlertsSuccess)
+
+    const { rerender } = render(
+      <WeatherAlertsCard
+        autoFetch={true}
+        initialRainfall={null}
+        initialAlerts={null}
+        fetchRainfallFn={mockRainfallFn}
+        fetchAlertsFn={mockAlertsFn}
+        onDataRefreshed={() => {}}
+      />
+    )
+
+    await waitFor(() => {
+      expect(mockRainfallFn).toHaveBeenCalledTimes(1)
+      expect(mockAlertsFn).toHaveBeenCalledTimes(1)
+    })
+
+    // Re-render with new function reference for onDataRefreshed
+    rerender(
+      <WeatherAlertsCard
+        autoFetch={true}
+        initialRainfall={null}
+        initialAlerts={null}
+        fetchRainfallFn={mockRainfallFn}
+        fetchAlertsFn={mockAlertsFn}
+        onDataRefreshed={() => {}}
+      />
+    )
+
+    // Ensure neither fetcher was re-triggered
+    expect(mockRainfallFn).toHaveBeenCalledTimes(1)
+    expect(mockAlertsFn).toHaveBeenCalledTimes(1)
+  })
 })

@@ -14,7 +14,7 @@ NOT represent an exact physical measurement station or sensor location.
 import asyncio
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
@@ -228,12 +228,29 @@ class _CachedRainfallEntry:
     endpoint_url: str
 
 
+def calculate_daily_quota_cooldown_seconds(now: Optional[datetime] = None) -> float:
+    """Calculate remaining seconds until the next 00:00 UTC."""
+    current_time = now or datetime.now(timezone.utc)
+    if current_time.tzinfo is None:
+        current_time = current_time.replace(tzinfo=timezone.utc)
+    else:
+        current_time = current_time.astimezone(timezone.utc)
+
+    next_midnight_utc = datetime.combine(
+        current_time.date() + timedelta(days=1),
+        datetime.min.time(),
+        tzinfo=timezone.utc,
+    )
+    return max(0.0, (next_midnight_utc - current_time).total_seconds())
+
+
 @dataclass
 class _FailureCooldownEntry:
     """Internal failure cooldown entry wrapper."""
 
     error_message: str
     failed_at: datetime
+    cooldown_seconds: Optional[float] = None
 
 
 def _make_stale_response(
@@ -360,8 +377,24 @@ class OpenMeteoCache:
             return None
 
         current_time = now or datetime.now(timezone.utc)
-        age = (current_time - entry.failed_at).total_seconds()
-        if age <= self.failure_cooldown_seconds:
+        if current_time.tzinfo is None:
+            current_time = current_time.replace(tzinfo=timezone.utc)
+        else:
+            current_time = current_time.astimezone(timezone.utc)
+
+        failed_at = entry.failed_at
+        if failed_at.tzinfo is None:
+            failed_at = failed_at.replace(tzinfo=timezone.utc)
+        else:
+            failed_at = failed_at.astimezone(timezone.utc)
+
+        cooldown = (
+            entry.cooldown_seconds
+            if entry.cooldown_seconds is not None
+            else self.failure_cooldown_seconds
+        )
+        age = (current_time - failed_at).total_seconds()
+        if age <= cooldown:
             return entry.error_message, entry.failed_at
 
         # Expired cooldown: clean up
@@ -369,16 +402,37 @@ class OpenMeteoCache:
         return None
 
     def set_failure(
-        self, key: str, error_message: str, failed_at: Optional[datetime] = None
+        self,
+        key: str,
+        error_message: str,
+        failed_at: Optional[datetime] = None,
+        cooldown_seconds: Optional[float] = None,
     ) -> None:
         """Store failure in cooldown table with bounded capacity eviction."""
         saved_time = failed_at or datetime.now(timezone.utc)
+        if saved_time.tzinfo is None:
+            saved_time = saved_time.replace(tzinfo=timezone.utc)
+        else:
+            saved_time = saved_time.astimezone(timezone.utc)
+
         if len(self._failures) >= self.max_failure_entries:
             # Prune expired entries first
             expired_keys = [
                 k
                 for k, v in self._failures.items()
-                if (saved_time - v.failed_at).total_seconds() > self.failure_cooldown_seconds
+                if (
+                    saved_time
+                    - (
+                        v.failed_at.replace(tzinfo=timezone.utc)
+                        if v.failed_at.tzinfo is None
+                        else v.failed_at.astimezone(timezone.utc)
+                    )
+                ).total_seconds()
+                > (
+                    v.cooldown_seconds
+                    if v.cooldown_seconds is not None
+                    else self.failure_cooldown_seconds
+                )
             ]
             for k in expired_keys:
                 del self._failures[k]
@@ -390,6 +444,7 @@ class OpenMeteoCache:
         self._failures[key] = _FailureCooldownEntry(
             error_message=error_message,
             failed_at=saved_time,
+            cooldown_seconds=cooldown_seconds,
         )
 
     def clear(self) -> None:
@@ -593,9 +648,10 @@ class OpenMeteoProvider:
                 status_code = resp.status_code if resp is not None else 0
                 reason = resp.reason_phrase if resp is not None else ""
                 try:
-                    body = (resp.text or "")[:200] if resp is not None else ""
+                    raw_text = resp.text or "" if resp is not None else ""
                 except Exception:
-                    body = ""
+                    raw_text = ""
+                body = raw_text[:200]
                 logger.warning(
                     "Open-Meteo HTTP error: status=%s reason=%s body=%s",
                     status_code,
@@ -607,7 +663,18 @@ class OpenMeteoProvider:
                     if status_code
                     else "Upstream forecast request failed: HTTPStatusError"
                 )
-                self.cache.set_failure(cache_key, safe_err, failed_at=now_utc)
+                is_daily_limit = (
+                    status_code == 429
+                    and "daily api request limit exceeded" in raw_text.lower()
+                )
+                cooldown = (
+                    calculate_daily_quota_cooldown_seconds(now_utc)
+                    if is_daily_limit
+                    else None
+                )
+                self.cache.set_failure(
+                    cache_key, safe_err, failed_at=now_utc, cooldown_seconds=cooldown
+                )
 
                 # Serve stale cache if available
                 if cached is not None:

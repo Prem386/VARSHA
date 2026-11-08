@@ -1,12 +1,17 @@
-import test from 'node:test'
+import test, { beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   fetchRainfallForecast,
   fetchOfficialAlerts,
   WeatherApiError,
   DEFAULT_PILOT_COORDINATES,
+  clearRainfallCache,
 } from '../src/features/weather/weatherService.ts'
 import type { AlertListResponse, RainfallResponse } from '../src/types/index.ts'
+
+beforeEach(() => {
+  clearRainfallCache()
+})
 
 test('fetchRainfallForecast returns normalized response with default coordinates', async () => {
   let requestedUrl = ''
@@ -231,4 +236,173 @@ test('fetchRainfallForecast strips trailing slash from custom baseUrl', async ()
     `Expected URL to start with single slash path, got ${requestedUrl}`
   )
   assert.ok(!requestedUrl.includes('.com//api'))
+})
+
+test('fetchRainfallForecast caches response for 5 minutes and refetches after expiry', async () => {
+  let callCount = 0
+  const mockPayload = {
+    provider: { provider: 'open_meteo', status: 'ok', is_cached: false, is_stale: false },
+    current: null,
+    hourly: [],
+    summary: null,
+    caveats: [],
+  }
+
+  const mockFetch = async (): Promise<Response> => {
+    callCount += 1
+    return new Response(JSON.stringify(mockPayload), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  const res1 = await fetchRainfallForecast(19.033, 73.0297, 24, {
+    fetchFn: mockFetch as unknown as typeof fetch,
+  })
+  assert.equal(callCount, 1)
+  assert.equal(res1.provider.status, 'ok')
+
+  // Second call within 5-minute window hits client-side cache
+  const res2 = await fetchRainfallForecast(19.033, 73.0297, 24, {
+    fetchFn: mockFetch as unknown as typeof fetch,
+  })
+  assert.equal(callCount, 1)
+  assert.deepEqual(res2, res1)
+
+  // Fast-forward time past 5 minutes (301 seconds)
+  const realNow = Date.now
+  try {
+    Date.now = () => realNow() + 301 * 1000
+    const res3 = await fetchRainfallForecast(19.033, 73.0297, 24, {
+      fetchFn: mockFetch as unknown as typeof fetch,
+    })
+    assert.equal(callCount, 2)
+    assert.equal(res3.provider.status, 'ok')
+  } finally {
+    Date.now = realNow
+  }
+})
+
+test('fetchRainfallForecast shares single in-flight Promise for concurrent requests', async () => {
+  let callCount = 0
+  const mockPayload = {
+    provider: { provider: 'open_meteo', status: 'ok', is_cached: false, is_stale: false },
+    current: null,
+    hourly: [],
+    summary: null,
+    caveats: [],
+  }
+
+  const mockFetch = async (): Promise<Response> => {
+    callCount += 1
+    // Add artificial tick so in-flight state is observable
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    return new Response(JSON.stringify(mockPayload), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  const [res1, res2, res3] = await Promise.all([
+    fetchRainfallForecast(19.033, 73.0297, 24, { fetchFn: mockFetch as unknown as typeof fetch }),
+    fetchRainfallForecast(19.033, 73.0297, 24, { fetchFn: mockFetch as unknown as typeof fetch }),
+    fetchRainfallForecast(19.033, 73.0297, 24, { fetchFn: mockFetch as unknown as typeof fetch }),
+  ])
+
+  // Single network request made despite three concurrent callers
+  assert.equal(callCount, 1)
+  assert.equal(res1.provider.status, 'ok')
+  assert.deepEqual(res2, res1)
+  assert.deepEqual(res3, res1)
+})
+
+test('fetchRainfallForecast does not cache failed requests and clears in-flight Promise for recovery', async () => {
+  let callCount = 0
+  let shouldFail = true
+  const mockPayload = {
+    provider: { provider: 'open_meteo', status: 'ok', is_cached: false, is_stale: false },
+    current: null,
+    hourly: [],
+    summary: null,
+    caveats: [],
+  }
+
+  const mockFetch = async (): Promise<Response> => {
+    callCount += 1
+    if (shouldFail) {
+      return new Response(JSON.stringify({ detail: 'Transient 503 error' }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    return new Response(JSON.stringify(mockPayload), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  // 1. Initial attempt fails
+  await assert.rejects(
+    async () => {
+      await fetchRainfallForecast(19.033, 73.0297, 24, {
+        fetchFn: mockFetch as unknown as typeof fetch,
+      })
+    },
+    (err: unknown) => {
+      assert.ok(err instanceof WeatherApiError)
+      assert.equal(err.statusCode, 503)
+      return true
+    }
+  )
+  assert.equal(callCount, 1)
+
+  // 2. Immediate second attempt recovers because failed request was not cached and in-flight was cleared
+  shouldFail = false
+  const recovered = await fetchRainfallForecast(19.033, 73.0297, 24, {
+    fetchFn: mockFetch as unknown as typeof fetch,
+  })
+  assert.equal(callCount, 2)
+  assert.equal(recovered.provider.status, 'ok')
+})
+
+test('fetchRainfallForecast does not cache HTTP 200 responses with provider.status unavailable', async () => {
+  let callCount = 0
+  const unavailablePayload = {
+    provider: {
+      provider: 'open_meteo',
+      status: 'unavailable',
+      is_cached: false,
+      is_stale: false,
+      error_message: 'Upstream forecast request failed: HTTP 429',
+    },
+    current: null,
+    hourly: [],
+    summary: null,
+    caveats: [],
+  }
+
+  const mockFetch = async (): Promise<Response> => {
+    callCount += 1
+    return new Response(JSON.stringify(unavailablePayload), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  // First call returns unavailable response
+  const res1 = await fetchRainfallForecast(19.033, 73.0297, 24, {
+    fetchFn: mockFetch as unknown as typeof fetch,
+  })
+  assert.equal(callCount, 1)
+  assert.equal(res1.provider.status, 'unavailable')
+  assert.equal(res1.provider.error_message, 'Upstream forecast request failed: HTTP 429')
+
+  // Second call with identical parameters must perform second network request instead of returning cached result
+  const res2 = await fetchRainfallForecast(19.033, 73.0297, 24, {
+    fetchFn: mockFetch as unknown as typeof fetch,
+  })
+  assert.equal(callCount, 2)
+  assert.equal(res2.provider.status, 'unavailable')
+  assert.equal(res2.provider.error_message, 'Upstream forecast request failed: HTTP 429')
+  assert.deepEqual(res1, res2)
 })

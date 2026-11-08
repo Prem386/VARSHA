@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import type { AlertListResponse, NormalizedAlert, PrecipitationStep, RainfallResponse } from '../../types'
 import {
   DEFAULT_PILOT_COORDINATES,
@@ -137,20 +137,30 @@ function getSeverityBadgeClass(severity: string): string {
   }
 }
 
+// Default fetcher functions defined outside component to stabilize references
+const defaultFetchRainfall = (lat: number, lon: number, hours: number) =>
+  fetchRainfallForecast(lat, lon, hours)
+const defaultFetchAlerts = (activeOnly: boolean) =>
+  fetchOfficialAlerts(activeOnly)
+
 export const WeatherAlertsCard: React.FC<WeatherAlertsCardProps> = ({
   autoFetch = true,
   initialRainfall = null,
   initialAlerts = null,
-  fetchRainfallFn = (lat, lon, hours) => fetchRainfallForecast(lat, lon, hours),
-  fetchAlertsFn = (activeOnly) => fetchOfficialAlerts(activeOnly),
+  fetchRainfallFn = defaultFetchRainfall,
+  fetchAlertsFn = defaultFetchAlerts,
   referenceTime = null,
   onDataRefreshed,
 }) => {
   const [rainfall, setRainfall] = useState<RainfallResponse | null>(initialRainfall)
   const [alerts, setAlerts] = useState<AlertListResponse | null>(initialAlerts)
-  const [isLoading, setIsLoading] = useState<boolean>(
-    autoFetch && (!initialRainfall || !initialAlerts)
+  const [isRainfallLoading, setIsRainfallLoading] = useState<boolean>(
+    Boolean(autoFetch && !initialRainfall)
   )
+  const [isAlertsLoading, setIsAlertsLoading] = useState<boolean>(
+    Boolean(autoFetch && !initialAlerts)
+  )
+  const isLoading = isRainfallLoading || isAlertsLoading
   const [rainfallError, setRainfallError] = useState<string | null>(
     initialRainfall?.provider.status === 'unavailable'
       ? initialRainfall.provider.error_message || 'Rainfall forecast provider unavailable'
@@ -163,46 +173,67 @@ export const WeatherAlertsCard: React.FC<WeatherAlertsCardProps> = ({
   )
   const [expandedAlertId, setExpandedAlertId] = useState<string | null>(null)
 
-  const loadData = useCallback(async () => {
-    setIsLoading(true)
+  // Stabilize onDataRefreshed callback reference so parent re-renders don't cause effect re-triggers
+  const onDataRefreshedRef = useRef(onDataRefreshed)
+  useEffect(() => {
+    onDataRefreshedRef.current = onDataRefreshed
+  }, [onDataRefreshed])
+
+  // Track if auto-fetch has already executed to prevent repeated fetches on re-renders
+  const rainfallFetchedRef = useRef(Boolean(initialRainfall))
+  const alertsFetchedRef = useRef(Boolean(initialAlerts))
+
+  const loadRainfall = useCallback(async () => {
+    setIsRainfallLoading(true)
     setRainfallError(null)
+
+    try {
+      const res = await fetchRainfallFn(
+        DEFAULT_PILOT_COORDINATES.latitude,
+        DEFAULT_PILOT_COORDINATES.longitude,
+        24
+      )
+      setRainfall(res)
+      if (res.provider.status === 'unavailable') {
+        setRainfallError(res.provider.error_message || 'Rainfall forecast provider unavailable')
+      }
+      return res
+    } catch (err: unknown) {
+      setRainfall(null)
+      const msg = err instanceof Error ? err.message : 'Failed to retrieve rainfall forecast'
+      setRainfallError(msg || 'Failed to retrieve rainfall forecast')
+      return null
+    } finally {
+      setIsRainfallLoading(false)
+    }
+  }, [fetchRainfallFn])
+
+  const loadAlerts = useCallback(async () => {
+    setIsAlertsLoading(true)
     setAlertsError(null)
 
-    // Execute concurrently, isolated error states
-    const rainfallPromise = fetchRainfallFn(
-      DEFAULT_PILOT_COORDINATES.latitude,
-      DEFAULT_PILOT_COORDINATES.longitude,
-      24
-    )
-      .then((res) => {
-        setRainfall(res)
-        if (res.provider.status === 'unavailable') {
-          setRainfallError(res.provider.error_message || 'Rainfall forecast provider unavailable')
-        }
-        return res
-      })
-      .catch((err: Error) => {
-        setRainfall(null)
-        setRainfallError(err.message || 'Failed to retrieve rainfall forecast')
-        return null
-      })
+    try {
+      const res = await fetchAlertsFn(true)
+      setAlerts(res)
+      if (res.provider.status === 'unavailable') {
+        setAlertsError(res.provider.error_message || 'Official alerts provider unavailable')
+      }
+      return res
+    } catch (err: unknown) {
+      setAlerts(null)
+      const msg = err instanceof Error ? err.message : 'Failed to retrieve official alerts'
+      setAlertsError(msg || 'Failed to retrieve official alerts')
+      return null
+    } finally {
+      setIsAlertsLoading(false)
+    }
+  }, [fetchAlertsFn])
 
-    const alertsPromise = fetchAlertsFn(true)
-      .then((res) => {
-        setAlerts(res)
-        if (res.provider.status === 'unavailable') {
-          setAlertsError(res.provider.error_message || 'Official alerts provider unavailable')
-        }
-        return res
-      })
-      .catch((err: Error) => {
-        setAlerts(null)
-        setAlertsError(err.message || 'Failed to retrieve official alerts')
-        return null
-      })
-
-    const [rainSettled, alertsSettled] = await Promise.allSettled([rainfallPromise, alertsPromise])
-    setIsLoading(false)
+  const loadData = useCallback(async () => {
+    const [rainSettled, alertsSettled] = await Promise.allSettled([
+      loadRainfall(),
+      loadAlerts(),
+    ])
 
     if (
       rainSettled.status === 'fulfilled' &&
@@ -210,20 +241,30 @@ export const WeatherAlertsCard: React.FC<WeatherAlertsCardProps> = ({
       alertsSettled.status === 'fulfilled' &&
       alertsSettled.value
     ) {
-      onDataRefreshed?.(rainSettled.value, alertsSettled.value)
+      onDataRefreshedRef.current?.(rainSettled.value, alertsSettled.value)
     }
-  }, [fetchRainfallFn, fetchAlertsFn, onDataRefreshed])
+  }, [loadRainfall, loadAlerts])
 
-  // Only auto-fetch on mount if initial data has not already been supplied
+  // Auto-fetch rainfall on mount only if initial data missing
   useEffect(() => {
-    if (autoFetch && (!initialRainfall || !initialAlerts)) {
-      loadData()
+    if (autoFetch && !initialRainfall && !rainfallFetchedRef.current) {
+      rainfallFetchedRef.current = true
+      loadRainfall()
     }
-  }, [autoFetch, loadData, initialRainfall, initialAlerts])
+  }, [autoFetch, initialRainfall, loadRainfall])
+
+  // Auto-fetch alerts on mount only if initial data missing
+  useEffect(() => {
+    if (autoFetch && !initialAlerts && !alertsFetchedRef.current) {
+      alertsFetchedRef.current = true
+      loadAlerts()
+    }
+  }, [autoFetch, initialAlerts, loadAlerts])
 
   // Keep state synchronized if initial props change
   useEffect(() => {
     if (initialRainfall) {
+      rainfallFetchedRef.current = true
       setRainfall(initialRainfall)
       setRainfallError(
         initialRainfall.provider.status === 'unavailable'
@@ -235,6 +276,7 @@ export const WeatherAlertsCard: React.FC<WeatherAlertsCardProps> = ({
 
   useEffect(() => {
     if (initialAlerts) {
+      alertsFetchedRef.current = true
       setAlerts(initialAlerts)
       setAlertsError(
         initialAlerts.provider.status === 'unavailable'
@@ -323,7 +365,7 @@ export const WeatherAlertsCard: React.FC<WeatherAlertsCardProps> = ({
                 <p className="error-detail">{rainfallError}</p>
               </div>
             </div>
-          ) : isLoading && !rainfall ? (
+          ) : isRainfallLoading && !rainfall ? (
             <div className="service-loading-state" aria-busy="true">
               <div className="loading-spinner" aria-hidden="true"></div>
               <span>Retrieving model precipitation forecast…</span>
@@ -535,7 +577,7 @@ export const WeatherAlertsCard: React.FC<WeatherAlertsCardProps> = ({
                 <p className="error-detail">{alertsError}</p>
               </div>
             </div>
-          ) : isLoading && !alerts ? (
+          ) : isAlertsLoading && !alerts ? (
             <div className="service-loading-state" aria-busy="true">
               <div className="loading-spinner" aria-hidden="true"></div>
               <span>Connecting to NDMA SACHET warning feed…</span>

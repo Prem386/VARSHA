@@ -12,6 +12,25 @@ export const DEFAULT_PILOT_COORDINATES = {
   longitude: 73.0297,
 }
 
+export const RAINFALL_CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+
+interface RainfallCacheEntry {
+  data: RainfallResponse
+  timestamp: number
+}
+
+const rainfallCache = new Map<string, RainfallCacheEntry>()
+const inFlightRainfallRequests = new Map<string, Promise<RainfallResponse>>()
+
+/**
+ * Clears the client-side rainfall response cache and in-flight promises.
+ * Primarily used for isolated unit and component testing.
+ */
+export function clearRainfallCache(): void {
+  rainfallCache.clear()
+  inFlightRainfallRequests.clear()
+}
+
 export interface FetchOptions {
   signal?: AbortSignal
   baseUrl?: string
@@ -41,6 +60,7 @@ function getDefaultBaseUrl(): string {
 
 /**
  * Fetches numerical weather prediction rainfall forecast from backend.
+ * Uses a 5-minute in-memory cache and in-flight request sharing to deduplicate requests.
  */
 export async function fetchRainfallForecast(
   latitude: number = DEFAULT_PILOT_COORDINATES.latitude,
@@ -48,40 +68,67 @@ export async function fetchRainfallForecast(
   forecastHours: number = 24,
   options?: FetchOptions
 ): Promise<RainfallResponse> {
-  const fetcher = options?.fetchFn ?? fetch
   const rawBaseUrl = options?.baseUrl ?? getDefaultBaseUrl()
   const baseUrl = rawBaseUrl.trim().replace(/\/+$/, '')
   const endpoint = `${baseUrl}/api/v1/rainfall?latitude=${latitude}&longitude=${longitude}&forecast_hours=${forecastHours}`
 
-  let response: Response
-  try {
-    response = await fetcher(endpoint, {
-      signal: options?.signal,
-      headers: { Accept: 'application/json' },
-    })
-  } catch (err: unknown) {
-    if (err instanceof DOMException && err.name === 'AbortError') throw err
-    if (err instanceof Error && err.name === 'AbortError') throw err
-    throw new WeatherApiError('Unable to connect to rainfall service. Verify backend is running.', 0)
+  // 1. Check 5-minute in-memory response cache
+  const cached = rainfallCache.get(endpoint)
+  if (cached && Date.now() - cached.timestamp < RAINFALL_CACHE_TTL_MS) {
+    return cached.data
   }
 
-  if (!response.ok) {
-    let detail = ''
+  // 2. Reuse in-flight promise for concurrent callers
+  const existingInFlight = inFlightRainfallRequests.get(endpoint)
+  if (existingInFlight) {
+    return existingInFlight
+  }
+
+  const fetcher = options?.fetchFn ?? fetch
+  const requestPromise = (async () => {
+    let response: Response
     try {
-      const errJson = await response.json()
-      if (errJson && typeof errJson.detail === 'string') {
-        detail = errJson.detail
-      }
-    } catch {
-      // Non-JSON payload
+      response = await fetcher(endpoint, {
+        signal: options?.signal,
+        headers: { Accept: 'application/json' },
+      })
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError') throw err
+      if (err instanceof Error && err.name === 'AbortError') throw err
+      throw new WeatherApiError('Unable to connect to rainfall service. Verify backend is running.', 0)
     }
-    throw new WeatherApiError(
-      detail || `Rainfall forecast service failed with status ${response.status}`,
-      response.status
-    )
-  }
 
-  return (await response.json()) as RainfallResponse
+    if (!response.ok) {
+      let detail = ''
+      try {
+        const errJson = await response.json()
+        if (errJson && typeof errJson.detail === 'string') {
+          detail = errJson.detail
+        }
+      } catch {
+        // Non-JSON payload
+      }
+      throw new WeatherApiError(
+        detail || `Rainfall forecast service failed with status ${response.status}`,
+        response.status
+      )
+    }
+
+    const data = (await response.json()) as RainfallResponse
+    // Only cache successful forecasts (ok) or usable stale fallbacks (degraded); do not cache unavailable states
+    if (data.provider?.status === 'ok' || data.provider?.status === 'degraded') {
+      rainfallCache.set(endpoint, { data, timestamp: Date.now() })
+    }
+    return data
+  })()
+
+  inFlightRainfallRequests.set(endpoint, requestPromise)
+
+  try {
+    return await requestPromise
+  } finally {
+    inFlightRainfallRequests.delete(endpoint)
+  }
 }
 
 /**

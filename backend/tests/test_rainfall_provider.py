@@ -9,7 +9,11 @@ import httpx
 import pytest
 
 from app.schemas.rainfall import RainfallResponse
-from app.services.weather.open_meteo import OpenMeteoCache, OpenMeteoProvider
+from app.services.weather.open_meteo import (
+    OpenMeteoCache,
+    OpenMeteoProvider,
+    calculate_daily_quota_cooldown_seconds,
+)
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "open_meteo"
 
@@ -411,3 +415,173 @@ async def test_provider_http_status_error_logging_and_truncation(caplog: pytest.
         assert "reason=Too Many Requests" in log_msg
         assert "x" * 200 in log_msg
         assert "x" * 201 not in log_msg
+
+
+# --- Daily Quota Cooldown Tests ---
+
+def test_calculate_daily_quota_cooldown_seconds_dynamic_and_timezone_aware() -> None:
+    """Dynamic calculation accurately determines remaining seconds until next 00:00 UTC."""
+    # 1. Middle of UTC day (15:00:00 UTC -> 9 hours remaining = 32,400s)
+    t_midday = datetime(2026, 11, 8, 15, 0, 0, tzinfo=timezone.utc)
+    rem_midday = calculate_daily_quota_cooldown_seconds(t_midday)
+    assert rem_midday == 9 * 3600
+
+    # 2. Near end of UTC day (23:59:50 UTC -> 10s remaining)
+    t_late = datetime(2026, 11, 8, 23, 59, 50, tzinfo=timezone.utc)
+    rem_late = calculate_daily_quota_cooldown_seconds(t_late)
+    assert rem_late == 10.0
+
+    # 3. Exact midnight UTC (00:00:00 UTC -> 24 hours = 86,400s remaining)
+    t_midnight = datetime(2026, 11, 8, 0, 0, 0, tzinfo=timezone.utc)
+    rem_midnight = calculate_daily_quota_cooldown_seconds(t_midnight)
+    assert rem_midnight == 86400.0
+
+    # 4. Timezone-aware with non-UTC offset (IST: UTC+5:30)
+    # 20:30 IST is 15:00 UTC -> remaining until 00:00 UTC is 9 hours
+    ist_tz = timezone(timedelta(hours=5, minutes=30))
+    t_ist = datetime(2026, 11, 8, 20, 30, 0, tzinfo=ist_tz)
+    rem_ist = calculate_daily_quota_cooldown_seconds(t_ist)
+    assert rem_ist == 9 * 3600
+
+
+@pytest.mark.anyio
+async def test_provider_daily_quota_429_extends_cooldown_to_midnight_utc() -> None:
+    """HTTP 429 with 'Daily API request limit exceeded' triggers long cooldown until midnight UTC."""
+    call_count = 0
+    quota_body = b'{"error": true, "reason": "Daily API request limit exceeded. Please try again tomorrow."}'
+
+    def quota_handler(request: httpx.Request) -> httpx.Response:
+        nonlocal call_count
+        call_count += 1
+        return httpx.Response(429, content=quota_body, request=request)
+
+    transport = httpx.MockTransport(quota_handler)
+    async with httpx.AsyncClient(transport=transport) as client:
+        provider = OpenMeteoProvider(failure_cooldown_seconds=60)
+
+        # 1. First call fails with daily quota 429
+        res1 = await provider.fetch_rainfall(19.033, 73.0297, forecast_hours=24, client=client)
+        assert res1.provider.status == "unavailable"
+        assert res1.provider.is_cached is False
+        assert "HTTP 429" in res1.provider.error_message
+        assert call_count == 1
+
+        # Check recorded failure cooldown in cache
+        key = provider.cache.make_key(19.033, 73.0297, 24)
+        failure_entry = provider.cache._failures.get(key)
+        assert failure_entry is not None
+        assert failure_entry.cooldown_seconds is not None
+        # Cooldown should be dynamic duration to midnight UTC, significantly longer than 60s
+        expected_remaining = calculate_daily_quota_cooldown_seconds(failure_entry.failed_at)
+        assert abs(failure_entry.cooldown_seconds - expected_remaining) < 2.0
+
+        # 2. Second call within daily quota cooldown does NOT call upstream
+        res2 = await provider.fetch_rainfall(19.033, 73.0297, forecast_hours=24, client=client)
+        assert res2.provider.status == "unavailable"
+        assert call_count == 1  # No second upstream call made
+
+
+@pytest.mark.anyio
+async def test_provider_generic_429_retains_short_cooldown() -> None:
+    """Generic HTTP 429 (not daily quota) retains the standard 60-second cooldown."""
+    call_count = 0
+
+    def generic_handler(request: httpx.Request) -> httpx.Response:
+        nonlocal call_count
+        call_count += 1
+        return httpx.Response(429, content=b"Minutely rate limit exceeded", request=request)
+
+    transport = httpx.MockTransport(generic_handler)
+    async with httpx.AsyncClient(transport=transport) as client:
+        provider = OpenMeteoProvider(failure_cooldown_seconds=60)
+
+        res1 = await provider.fetch_rainfall(19.033, 73.0297, forecast_hours=24, client=client)
+        assert res1.provider.status == "unavailable"
+        assert call_count == 1
+
+        key = provider.cache.make_key(19.033, 73.0297, 24)
+        failure_entry = provider.cache._failures.get(key)
+        assert failure_entry is not None
+        # Generic 429 leaves cooldown_seconds as None (defaults to 60s)
+        assert failure_entry.cooldown_seconds is None
+
+
+@pytest.mark.anyio
+async def test_provider_stale_cache_fallback_during_daily_quota_cooldown() -> None:
+    """Stale cached forecast serves as degraded fallback during daily quota cooldown."""
+    raw_bytes = _read_fixture_bytes("forecast_success.json")
+    call_count = 0
+    quota_body = b'{"error": true, "reason": "Daily API request limit exceeded."}'
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return httpx.Response(200, content=raw_bytes, request=request)
+        return httpx.Response(429, content=quota_body, request=request)
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as client:
+        provider = OpenMeteoProvider(cache_ttl_seconds=10, failure_cooldown_seconds=60)
+
+        # 1. Populate fresh cache
+        res1 = await provider.fetch_rainfall(19.033, 73.0297, forecast_hours=24, client=client)
+        assert res1.provider.status == "ok"
+        assert call_count == 1
+
+        # 2. Backdate cache to expire it
+        key = provider.cache.make_key(19.033, 73.0297, 24)
+        old_time = datetime.now(timezone.utc) - timedelta(seconds=20)
+        provider.cache._entries[key].cached_at = old_time
+
+        # 3. Next request hits 429 daily quota limit
+        res2 = await provider.fetch_rainfall(19.033, 73.0297, forecast_hours=24, client=client)
+        assert res2.provider.status == "degraded"
+        assert res2.provider.is_stale is True
+        assert res2.provider.is_cached is True
+        assert len(res2.hourly) == 24
+        assert call_count == 2
+
+        # 4. Subsequent request during daily quota cooldown returns degraded stale cache without upstream call
+        res3 = await provider.fetch_rainfall(19.033, 73.0297, forecast_hours=24, client=client)
+        assert res3.provider.status == "degraded"
+        assert res3.provider.is_stale is True
+        assert call_count == 2
+
+
+@pytest.mark.anyio
+async def test_provider_daily_quota_cooldown_expiry_permits_retry() -> None:
+    """When daily quota cooldown expires (after midnight UTC), new requests reach upstream."""
+    call_count = 0
+    raw_bytes = _read_fixture_bytes("forecast_success.json")
+    quota_body = b"Daily API request limit exceeded"
+
+    def dynamic_handler(request: httpx.Request) -> httpx.Response:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return httpx.Response(429, content=quota_body, request=request)
+        return httpx.Response(200, content=raw_bytes, request=request)
+
+    transport = httpx.MockTransport(dynamic_handler)
+    async with httpx.AsyncClient(transport=transport) as client:
+        provider = OpenMeteoProvider(failure_cooldown_seconds=60)
+
+        # 1. First call encounters daily quota limit
+        res1 = await provider.fetch_rainfall(19.033, 73.0297, forecast_hours=24, client=client)
+        assert res1.provider.status == "unavailable"
+        assert call_count == 1
+
+        # 2. Simulate expiry by backdating failure entry past cooldown duration
+        key = provider.cache.make_key(19.033, 73.0297, 24)
+        failure_entry = provider.cache._failures[key]
+        assert failure_entry.cooldown_seconds is not None
+        provider.cache._failures[key].failed_at = (
+            datetime.now(timezone.utc) - timedelta(seconds=failure_entry.cooldown_seconds + 10)
+        )
+
+        # 3. Next request proceeds to upstream after cooldown expired
+        res2 = await provider.fetch_rainfall(19.033, 73.0297, forecast_hours=24, client=client)
+        assert res2.provider.status == "ok"
+        assert len(res2.hourly) == 24
+        assert call_count == 2
