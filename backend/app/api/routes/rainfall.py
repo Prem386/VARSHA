@@ -1,8 +1,16 @@
 """Rainfall forecast API routes."""
-from fastapi import APIRouter, Query
+import logging
+from fastapi import APIRouter, HTTPException, Query
 from app.core.config import settings
 from app.schemas.rainfall import RainfallResponse
+from app.services.weather.grid import (
+    NAVI_MUMBAI_BOUNDS,
+    get_nearest_cell_and_distance,
+    is_within_pilot_region,
+)
 from app.services.weather.open_meteo import open_meteo_provider
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["rainfall"])
 
@@ -56,8 +64,35 @@ async def get_rainfall(
     ),
 ) -> RainfallResponse:
     """Handle coordinate rainfall query with caching and stale fallback."""
+    logger.info("Incoming rainfall API request: lat=%s lon=%s forecast_hours=%s", latitude, longitude, forecast_hours)
+    if not is_within_pilot_region(latitude, longitude):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Coordinates ({latitude}, {longitude}) are outside the supported "
+                "Navi Mumbai pilot region. Supported bounds: "
+                f"latitude [{NAVI_MUMBAI_BOUNDS['min_lat']}, {NAVI_MUMBAI_BOUNDS['max_lat']}], "
+                f"longitude [{NAVI_MUMBAI_BOUNDS['min_lon']}, {NAVI_MUMBAI_BOUNDS['max_lon']}]."
+            ),
+        )
+
+    cell, distance_km = get_nearest_cell_and_distance(latitude, longitude)
+    max_radius = settings.WEATHER_MAX_CELL_DISTANCE_KM
+    if cell is None or distance_km > max_radius:
+        station_name = cell.name if cell is not None else "unknown"
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Coordinates ({latitude}, {longitude}) are {distance_km:.1f} km from "
+                f"the nearest pilot station '{station_name}', which exceeds the maximum permitted "
+                f"radius of {max_radius} km. Coverage is strictly limited to locations within "
+                f"{max_radius} km of Navi Mumbai pilot sampling stations (Vashi, Nerul, Belapur, Kharghar, Panvel)."
+            ),
+        )
+
     return await open_meteo_provider.fetch_rainfall(
         latitude=latitude,
         longitude=longitude,
         forecast_hours=forecast_hours,
+        allow_upstream=False,
     )

@@ -30,6 +30,8 @@ from app.schemas.rainfall import (
     RainfallResponse,
     RainfallSummary,
 )
+from app.services.weather.grid import resolve_pilot_cell
+from app.services.weather.redis_client import weather_redis_client
 
 logger = logging.getLogger(__name__)
 
@@ -259,15 +261,16 @@ def _make_stale_response(
     error_message: str,
     latitude: float,
     longitude: float,
+    is_stale: bool = True,
 ) -> RainfallResponse:
-    """Format an existing cached response as a degraded stale fallback."""
+    """Format an existing cached response as a degraded fallback."""
     return cached_resp.model_copy(
         update={
             "provider": RainfallProviderStatus(
                 provider="open_meteo",
                 status="degraded",
                 is_cached=True,
-                is_stale=True,
+                is_stale=is_stale,
                 retrieved_at=cached_at,
                 error_message=error_message,
                 endpoint_url=cached_resp.provider.endpoint_url,
@@ -525,6 +528,7 @@ class OpenMeteoProvider:
         longitude: float,
         forecast_hours: int = 24,
         client: Optional[httpx.AsyncClient] = None,
+        allow_upstream: bool = True,
     ) -> RainfallResponse:
         """Retrieve rainfall forecast for a coordinate.
 
@@ -544,11 +548,63 @@ class OpenMeteoProvider:
         cache_key = self.cache.make_key(latitude, longitude, hours)
         endpoint_url = self.build_endpoint_url(latitude, longitude, hours)
 
-        # Fast cache check without waiting on lock if entry is fresh
+        # Fast Redis snapshot check for Navi Mumbai pilot cells
+        cell = resolve_pilot_cell(latitude, longitude)
+        if cell is not None and weather_redis_client.is_available:
+            snapshot = await weather_redis_client.get_snapshot(cell.cell_id)
+            if snapshot is not None:
+                retrieved_at = snapshot.provider.retrieved_at
+                now_utc = datetime.now(timezone.utc)
+                stale_threshold = settings.WEATHER_SNAPSHOT_STALE_AFTER_MINUTES * 60
+
+                if retrieved_at is not None:
+                    retrieved_utc = (
+                        retrieved_at.replace(tzinfo=timezone.utc)
+                        if retrieved_at.tzinfo is None
+                        else retrieved_at.astimezone(timezone.utc)
+                    )
+                    age_seconds = (now_utc - retrieved_utc).total_seconds()
+                    is_stale = age_seconds > stale_threshold
+                else:
+                    is_stale = True
+
+                status = "degraded" if is_stale else "ok"
+                error_msg = (
+                    f"Forecast age exceeds {settings.WEATHER_SNAPSHOT_STALE_AFTER_MINUTES}m freshness threshold"
+                    if is_stale
+                    else None
+                )
+                logger.info(
+                    "Redis cache hit: cell=%s is_stale=%s retrieved_at=%s",
+                    cell.cell_id,
+                    is_stale,
+                    retrieved_at,
+                )
+
+                return snapshot.model_copy(
+                    update={
+                        "provider": RainfallProviderStatus(
+                            provider="open_meteo",
+                            status=status,
+                            is_cached=True,
+                            is_stale=is_stale,
+                            retrieved_at=retrieved_at,
+                            error_message=error_msg,
+                            endpoint_url=snapshot.provider.endpoint_url,
+                        ),
+                        "requested_coordinate": Coordinate(
+                            latitude=latitude, longitude=longitude
+                        ),
+                    }
+                )
+            else:
+                logger.info("Redis cache miss for cell '%s'.", cell.cell_id)
+
+        # Fast cache check without waiting on lock if entry is fresh and Redis is healthy
         cached = self.cache.get(cache_key)
         if cached is not None:
             cached_resp, is_stale, cached_at = cached
-            if not is_stale:
+            if not is_stale and weather_redis_client.is_available:
                 return cached_resp.model_copy(
                     update={
                         "provider": RainfallProviderStatus(
@@ -565,6 +621,8 @@ class OpenMeteoProvider:
                         ),
                     }
                 )
+            else:
+                logger.info("Redis cache miss for cell '%s'.", cell.cell_id)
 
         # Fast failure cooldown check without waiting on lock
         failure = self.cache.get_failure(cache_key)
@@ -579,8 +637,91 @@ class OpenMeteoProvider:
                 endpoint_url, fail_err, latitude, longitude
             )
 
+        # Check shared Redis daily quota cooldown across workers / restarts
+        if weather_redis_client.is_available:
+            shared_quota_err = await weather_redis_client.get_daily_quota_cooldown()
+            if shared_quota_err is not None:
+                if cached is not None:
+                    cached_resp, _, cached_at = cached
+                    return _make_stale_response(
+                        cached_resp, cached_at, shared_quota_err, latitude, longitude
+                    )
+                return _make_unavailable_response(
+                    endpoint_url, shared_quota_err, latitude, longitude
+                )
+
+        # If upstream requests are disallowed (normal API request path):
+        if not allow_upstream:
+            if not weather_redis_client.is_available:
+                logger.warning(
+                    "Redis unavailable during rainfall API request for coordinates (%s, %s). Checking local in-memory fallback.",
+                    latitude,
+                    longitude,
+                )
+            if cached is not None:
+                cached_resp, is_stale, cached_at = cached
+                err_msg = (
+                    "Shared weather cache unavailable; serving local snapshot."
+                    if not weather_redis_client.is_available
+                    else "Serving local snapshot while shared cache is refreshing."
+                )
+                return _make_stale_response(
+                    cached_resp, cached_at, err_msg, latitude, longitude, is_stale=is_stale
+                )
+
+            from fastapi import HTTPException
+            detail_msg = (
+                "Weather service temporarily unavailable. Shared weather cache is unreachable and no local snapshot is available."
+                if not weather_redis_client.is_available
+                else "Weather snapshot is initializing. Please retry in a moment."
+            )
+            raise HTTPException(status_code=503, detail=detail_msg)
+
         # Acquire lock to prevent thundering herd / duplicate concurrent requests
         async with self._lock:
+            # Re-check Redis snapshot under lock
+            if cell is not None and weather_redis_client.is_available:
+                snapshot = await weather_redis_client.get_snapshot(cell.cell_id)
+                if snapshot is not None:
+                    retrieved_at = snapshot.provider.retrieved_at
+                    now_utc = datetime.now(timezone.utc)
+                    stale_threshold = settings.WEATHER_SNAPSHOT_STALE_AFTER_MINUTES * 60
+
+                    if retrieved_at is not None:
+                        retrieved_utc = (
+                            retrieved_at.replace(tzinfo=timezone.utc)
+                            if retrieved_at.tzinfo is None
+                            else retrieved_at.astimezone(timezone.utc)
+                        )
+                        age_seconds = (now_utc - retrieved_utc).total_seconds()
+                        is_stale = age_seconds > stale_threshold
+                    else:
+                        is_stale = True
+
+                    status = "degraded" if is_stale else "ok"
+                    error_msg = (
+                        f"Forecast age exceeds {settings.WEATHER_SNAPSHOT_STALE_AFTER_MINUTES}m freshness threshold"
+                        if is_stale
+                        else None
+                    )
+
+                    return snapshot.model_copy(
+                        update={
+                            "provider": RainfallProviderStatus(
+                                provider="open_meteo",
+                                status=status,
+                                is_cached=True,
+                                is_stale=is_stale,
+                                retrieved_at=retrieved_at,
+                                error_message=error_msg,
+                                endpoint_url=snapshot.provider.endpoint_url,
+                            ),
+                            "requested_coordinate": Coordinate(
+                                latitude=latitude, longitude=longitude
+                            ),
+                        }
+                    )
+
             # Re-check cache under lock
             cached = self.cache.get(cache_key)
             if cached is not None:
@@ -625,6 +766,7 @@ class OpenMeteoProvider:
             try:
                 params = self.build_query_params(latitude, longitude, hours)
                 headers = {"User-Agent": "VARSHA-Mobility-Safety/0.1"}
+                logger.info("Actual Open-Meteo HTTP request initiated: %s", endpoint_url)
                 resp = await client.get(self.base_url, params=params, headers=headers)
                 resp.raise_for_status()
 
@@ -639,7 +781,12 @@ class OpenMeteoProvider:
                     is_cached=False,
                     is_stale=False,
                 )
+                if cell is not None and parsed.model_metadata is not None:
+                    parsed.model_metadata.cell_id = cell.cell_id
+
                 self.cache.set(cache_key, parsed, str(resp.url), cached_at=now_utc)
+                if cell is not None and weather_redis_client.is_available:
+                    await weather_redis_client.set_snapshot(cell.cell_id, parsed)
                 return parsed
             except asyncio.CancelledError:
                 raise
@@ -672,6 +819,10 @@ class OpenMeteoProvider:
                     if is_daily_limit
                     else None
                 )
+                if is_daily_limit and cooldown is not None:
+                    logger.warning("Daily quota cooldown activated for Open-Meteo: remaining_seconds=%.1f", cooldown)
+                    if weather_redis_client.is_available:
+                        await weather_redis_client.set_daily_quota_cooldown(cooldown, safe_err)
                 self.cache.set_failure(
                     cache_key, safe_err, failed_at=now_utc, cooldown_seconds=cooldown
                 )

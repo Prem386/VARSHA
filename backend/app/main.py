@@ -1,8 +1,31 @@
 """VARSHA FastAPI Backend Application Entrypoint."""
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.routes import health, alerts, rainfall, places
+from app.services.weather.redis_client import weather_redis_client
+from app.services.weather.scheduler import weather_scheduler
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application startup and shutdown lifecycles."""
+    # 1. Initialize Redis connection pool
+    await weather_redis_client.init_pool(settings.REDIS_URL)
+
+    # 2. Start scheduled weather ingestion background task
+    if settings.WEATHER_SCHEDULER_ENABLED:
+        await weather_scheduler.start()
+
+    yield
+
+    # 3. Gracefully stop background scheduler
+    await weather_scheduler.stop()
+
+    # 4. Disconnect Redis pool
+    await weather_redis_client.close()
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -11,6 +34,7 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # CORS Middleware

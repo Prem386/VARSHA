@@ -147,6 +147,13 @@ Review and adjust settings in `backend/.env`:
 | `OPEN_METEO_BASE_URL` | `https://api.open-meteo.com/v1/forecast` | Open-Meteo weather forecast endpoint. |
 | `OPEN_METEO_CACHE_TTL_SECONDS` | `900` | In-memory cache TTL for rainfall forecasts (15 minutes). |
 | `OPEN_METEO_MAX_FORECAST_HOURS`| `72` | Maximum forecast horizon allowed by API. |
+| `REDIS_URL` | *(empty)* | Connection URL for managed Redis (e.g. Render Key Value). If empty, backend falls back to in-memory caching. |
+| `REDIS_CONNECT_TIMEOUT_SECONDS` | `3.0` | Socket timeout for Redis operations. |
+| `WEATHER_REFRESH_INTERVAL_MINUTES` | `30` | Scheduled ingestion refresh interval for Navi Mumbai pilot cells. |
+| `WEATHER_SNAPSHOT_STALE_AFTER_MINUTES` | `35` | Threshold after which cached weather snapshots are flagged as degraded/stale. |
+| `WEATHER_SNAPSHOT_TTL_SECONDS` | `86400` | Redis key expiration retention (24 hours). |
+| `WEATHER_SCHEDULER_ENABLED` | `true` | Enable or disable the in-process scheduled background ingestion loop. |
+| `WEATHER_SUPPORTED_REGION` | `navi_mumbai` | Pilot geography identifier. |
 | `SACHET_FEED_URL` | `https://sachet.ndma.gov.in/cap_public_website/rss/rss_india.xml` | NDMA SACHET nationwide CAP RSS feed URL. |
 | `SACHET_CACHE_TTL_SECONDS` | `300` | In-memory cache TTL for disaster alert feed (5 minutes). |
 
@@ -287,6 +294,55 @@ pytest tests -v
 ```
 
 - **Backend Tests**: Tests configuration parsing, Pydantic data schemas, CAP 1.2 XML parsing, Open-Meteo JSON parsing, Geoapify place normalization, coordinate validation, in-memory TTL caching, bounded FIFO eviction, stale cache fallback behavior, and FastAPI endpoint routes.
+
+---
+
+## Redis-Based Scheduled Weather Ingestion (Render Deployment)
+
+VARSHA incorporates a scheduled weather ingestion architecture designed specifically for the Render free-tier deployment (~512 MB RAM):
+
+- **Shared Storage**: Render Key Value (managed Redis) stores normalized weather snapshots for the Navi Mumbai pilot grid cells (`vashi`, `nerul`, `belapur`, `kharghar`, `panvel`).
+- **Periodic Refresh**: An in-process background worker runs every 30 minutes, fetching NWP forecasts from Open-Meteo and storing them in Redis.
+- **Distributed Locking**: Redis lease locks (`SET weather:lock:scheduler {token} NX PX 120000`) coordinate execution so only ONE worker refreshes weather even if multiple Uvicorn workers or Render instances are active.
+- **Zero Extra Upstream Requests**: Incoming frontend users are served directly from Redis snapshots. 1,000 concurrent user requests generate **0** upstream Open-Meteo requests.
+- **Fault Tolerance**: If a refresh fails (e.g. Open-Meteo 500 or timeout), the previous snapshot is preserved in Redis and served as `is_stale=True, status="degraded"`.
+
+### Render Key Value Setup Instructions
+
+1. **Create Render Key Value Instance**:
+   - Log into your [Render Dashboard](https://dashboard.render.com/).
+   - Click **New +** and select **Key Value**.
+   - Set Name to `varsha-redis` (or your preferred name).
+   - **Important**: Select the **same region** as your FastAPI backend web service (e.g., Singapore `singapore-1`, Oregon, or Frankfurt) to minimize latency and ensure private networking.
+   - Choose the Free tier.
+   - Click **Create Key Value**.
+
+2. **Configure Backend Environment Variables**:
+   - Navigate to your FastAPI Web Service on Render (`varsha-backend`).
+   - Go to the **Environment** tab.
+   - Copy the **Internal Redis Connection URL** from the Render Key Value dashboard (e.g., `redis://red-xxxxxxxx:6379` or `rediss://...`). Using the internal URL avoids egress costs and routes traffic over Render's private network.
+   - Add the following environment variables:
+     ```env
+     REDIS_URL=redis://red-xxxxxxxx:6379
+     WEATHER_REFRESH_INTERVAL_MINUTES=30
+     WEATHER_SNAPSHOT_STALE_AFTER_MINUTES=35
+     WEATHER_SCHEDULER_ENABLED=true
+     ```
+   - Click **Save Changes** (Render will automatically redeploy the backend).
+
+3. **Verify Deployment & Connectivity**:
+   - In the Render Web Service logs, look for:
+     ```text
+     INFO: Redis connection established successfully.
+     INFO: WeatherScheduler background task started [worker_id=...].
+     INFO: Cold-start detected: 5 pilot cells missing from weather cache. Initializing...
+     INFO: Successfully refreshed and stored weather snapshot for cell 'vashi'.
+     ...
+     INFO: Scheduled weather refresh complete: 5/5 cells refreshed.
+     ```
+   - Make an API request to `https://varsha-gcpx.onrender.com/api/v1/rainfall?latitude=19.033&longitude=73.0297`:
+     - Verify response contains `provider.is_cached: true`, `provider.status: "ok"`, and `model_metadata.cell_id: "nerul"`.
+     - Check Render logs: subsequent calls log `Redis cache hit: cell=nerul` without any `Actual Open-Meteo HTTP request initiated` log entries.
 
 ---
 

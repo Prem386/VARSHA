@@ -41,6 +41,16 @@ class Settings(BaseSettings):
     OPEN_METEO_CACHE_TTL_SECONDS: int = 900
     OPEN_METEO_MAX_FORECAST_HOURS: int = 72
 
+    # Redis weather snapshot cache & ingestion settings
+    REDIS_URL: Optional[str] = None
+    REDIS_CONNECT_TIMEOUT_SECONDS: float = 3.0
+    WEATHER_REFRESH_INTERVAL_MINUTES: int = 30
+    WEATHER_SNAPSHOT_STALE_AFTER_MINUTES: int = 35
+    WEATHER_SNAPSHOT_TTL_SECONDS: int = 86400  # 24 hours snapshot retention in Redis
+    WEATHER_SCHEDULER_ENABLED: bool = True
+    WEATHER_SUPPORTED_REGION: str = "navi_mumbai"
+    WEATHER_MAX_CELL_DISTANCE_KM: float = 15.0  # Maximum permitted Haversine distance from nearest pilot station
+
     # Geoapify place search settings
     GEOAPIFY_API_KEY: Optional[str] = None
     GEOAPIFY_BASE_URL: str = "https://api.geoapify.com/v1/geocode/autocomplete"

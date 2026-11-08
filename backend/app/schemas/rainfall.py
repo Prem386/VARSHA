@@ -92,6 +92,10 @@ class ModelSourceMetadata(BaseModel):
         default="UTC",
         description="Timezone of time series values (normalized to UTC).",
     )
+    cell_id: Optional[str] = Field(
+        default=None,
+        description="Navi Mumbai pilot geographic cell identifier.",
+    )
 
 
 class PrecipitationStep(BaseModel):
