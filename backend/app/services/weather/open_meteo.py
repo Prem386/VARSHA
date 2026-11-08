@@ -588,6 +588,38 @@ class OpenMeteoProvider:
                 return parsed
             except asyncio.CancelledError:
                 raise
+            except httpx.HTTPStatusError as exc:
+                resp = exc.response
+                status_code = resp.status_code if resp is not None else 0
+                reason = resp.reason_phrase if resp is not None else ""
+                try:
+                    body = (resp.text or "")[:200] if resp is not None else ""
+                except Exception:
+                    body = ""
+                logger.warning(
+                    "Open-Meteo HTTP error: status=%s reason=%s body=%s",
+                    status_code,
+                    reason,
+                    body,
+                )
+                safe_err = (
+                    f"Upstream forecast request failed: HTTP {status_code}"
+                    if status_code
+                    else "Upstream forecast request failed: HTTPStatusError"
+                )
+                self.cache.set_failure(cache_key, safe_err, failed_at=now_utc)
+
+                # Serve stale cache if available
+                if cached is not None:
+                    cached_resp, _, cached_at = cached
+                    return _make_stale_response(
+                        cached_resp, cached_at, safe_err, latitude, longitude
+                    )
+
+                # Cold-start failure: return explicit unavailable state
+                return _make_unavailable_response(
+                    endpoint_url, safe_err, latitude, longitude
+                )
             except Exception as exc:
                 safe_err = f"Upstream forecast request failed: {type(exc).__name__}"
                 logger.warning("Open-Meteo fetch error: %s", exc)

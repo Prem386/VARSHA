@@ -1,6 +1,7 @@
 """Unit and integration tests for OpenMeteoProvider and OpenMeteoCache."""
 import asyncio
 import json
+import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict
@@ -123,7 +124,7 @@ async def test_provider_cold_start_failure() -> None:
         assert res.provider.is_cached is False
         assert res.provider.is_stale is False
         assert res.provider.retrieved_at is None
-        assert "HTTPStatusError" in res.provider.error_message
+        assert "HTTP 503" in res.provider.error_message
         assert res.hourly == []
         assert res.current is None
         assert res.summary is None  # CRITICAL: not summary.total_precipitation_mm == 0.0
@@ -238,7 +239,7 @@ async def test_provider_failure_cooldown_on_429() -> None:
         res1 = await provider.fetch_rainfall(19.033, 73.0297, forecast_hours=24, client=client)
         assert res1.provider.status == "unavailable"
         assert res1.provider.is_cached is False
-        assert "HTTPStatusError" in res1.provider.error_message
+        assert "HTTP 429" in res1.provider.error_message
         assert res1.hourly == []
         assert res1.current is None
         assert res1.summary is None
@@ -373,7 +374,7 @@ async def test_provider_stale_fallback_preserved_during_cooldown() -> None:
         assert res2.provider.is_cached is True
         assert res2.provider.is_stale is True
         assert res2.provider.retrieved_at == provider.cache._entries[key].cached_at
-        assert "HTTPStatusError" in res2.provider.error_message
+        assert "HTTP 429" in res2.provider.error_message
         assert len(res2.hourly) == 24
         assert call_count == 2
 
@@ -383,3 +384,30 @@ async def test_provider_stale_fallback_preserved_during_cooldown() -> None:
         assert res3.provider.is_cached is True
         assert res3.provider.is_stale is True
         assert call_count == 2
+
+
+@pytest.mark.anyio
+async def test_provider_http_status_error_logging_and_truncation(caplog: pytest.LogCaptureFixture) -> None:
+    """HTTPStatusError logs status code, reason phrase, and <= 200 chars body without sensitive data."""
+    long_body = "x" * 300
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(429, content=long_body.encode(), request=request)
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as client:
+        provider = OpenMeteoProvider()
+        with caplog.at_level(logging.WARNING):
+            res = await provider.fetch_rainfall(19.076, 72.8777, forecast_hours=24, client=client)
+
+        assert res.provider.status == "unavailable"
+        assert res.provider.error_message == "Upstream forecast request failed: HTTP 429"
+
+        # Verify log output captures status code, reason phrase, and truncated body
+        log_records = [r for r in caplog.records if r.name == "app.services.weather.open_meteo"]
+        assert len(log_records) == 1
+        log_msg = log_records[0].getMessage()
+        assert "status=429" in log_msg
+        assert "reason=Too Many Requests" in log_msg
+        assert "x" * 200 in log_msg
+        assert "x" * 201 not in log_msg
